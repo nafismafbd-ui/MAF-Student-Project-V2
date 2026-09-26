@@ -1,1 +1,22 @@
+let currentUser = null;
+    let currentProfile = null;
+    let students = [];
+    let studentDetails = [];
+    let receivables = [];
+    let payments = [];
+    let fundPayments = [];
+    let userProfiles = [];
+    let studentCredentials = [];
+    let openingBalances = [];
+    let cashInHandOpeningBalances = [];
+    let studentAccountRequests = [];
+    let studentCaUpdateRequests = [];
+    let leaveApplications = [];
+    let partnerProfile = null;
+    let funds = [];
+    let currentAdditionalRoles = [];
+    let managerAccessAssignments = [];
+    let fundLoanApplications = [];
+    let fundLoanRepayments = [];
+    let articleConversionRequests = [];
 
