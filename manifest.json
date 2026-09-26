@@ -1,1 +1,14 @@
-
+{
+  "source_file": "MAF_Student_Server_GitHub_Updated_2026-09-26.html",
+  "source_sha256": "de211b6076106b06a2ce1a0793a11faf0ce27755c235dd3876453bbf1dc21878",
+  "backup_sha256": "de211b6076106b06a2ce1a0793a11faf0ce27755c235dd3876453bbf1dc21878",
+  "files": {
+    "README.md": "e7664b7a4c09644d7b145c3185160b77f739e1ae5cbc8502449eed6ef4b0d7db",
+    "index.html": "8364682f47a3cc0d0471c69e9800bbfa54df4c06178b5fa6f82e0f956b644998",
+    "css/styles.css": "2a156ec663c67ee7ae693cad05df37c8633712a73c736965fc3d7a246f352ea3",
+    "js/config.js": "039d040badc9a42befa1fa63e713a2a1c9f8cef0e1b3dbba08338c534ba72611",
+    "js/app.js": "8d9446237834d9eecdb7a76eb05cba5fb1ff1f433a9a0fec71042762578a02cd",
+    "js/data.js": "3094e196197671020d581dc47f5b02eab9a814e4558f69c8268afd09502af791",
+    "backup/MAF_Student_Server_Full_Backup_2026-09-26.html": "de211b6076106b06a2ce1a0793a11faf0ce27755c235dd3876453bbf1dc21878"
+  }
+}
