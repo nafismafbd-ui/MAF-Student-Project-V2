@@ -1,1 +1,882 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MAF Student Server</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="css/styles.css">
+  <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+
+
+
+</head>
+
+<body>
+  <header>
+    <div class="nav">
+      <div class="brand">
+<div class="brand-title">
+          <h1>MAF Student Server</h1>
+          <span>Study with Focus, Work with Ethics, Rise as FCA</span>
+        </div>
+      </div>
+      <div class="login-area">
+        <span id="loginStatus" class="badge">Not logged in</span>
+        <div id="loginForm" class="login-area">
+          <input type="email" id="loginEmail" placeholder="Login ID / Email">
+          <input type="password" id="loginPassword" placeholder="Password">
+          <div class="captcha-test-wrap" title="Temporary hCaptcha test">
+            <div class="h-captcha" data-sitekey="7f0ee824-cec2-4952-b944-41b65da633fc"></div>
+          </div>
+          <button class="light" onclick="login()">Login</button>
+        </div>
+        <button id="logoutBtn" class="danger hidden" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="messageBox" class="message"></div>
+
+    <section class="hero">
+      <div>
+        <h2>CA Directory</h2>
+        <div class="btn-row"><button class="light" onclick="refreshAll()">Refresh</button></div>
+      </div>
+      <div class="hero-box">
+        <span>Total Profiles</span>
+        <strong id="heroNumber">0</strong>
+      </div>
+    </section>
+
+    <div id="birthdayBox" class="birthday-box"></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="publicTab" onclick="openTab('publicTab', this)">Profiles</button>
+      <button class="tab-btn hidden" id="studentTabBtn" data-tab="studentTab" onclick="openTab('studentTab', this)">My Profile</button>
+      <button class="tab-btn hidden" id="fundTabBtn" data-tab="fundTab" onclick="openTab('fundTab', this)">Fund</button>
+      <button class="tab-btn hidden" id="dataTabBtn" data-tab="dataTab" onclick="openTab('dataTab', this)">Data Manager</button>
+      <button class="tab-btn hidden" id="masterTabBtn" data-tab="masterTab" onclick="openTab('masterTab', this)">Master Account</button>
+      <button class="tab-btn hidden" id="managerLeaveTabBtn" data-tab="managerLeaveTab" onclick="openTab('managerLeaveTab', this)">Leave Manager</button>
+      <button class="tab-btn hidden" id="partnerTabBtn" data-tab="partnerTab" onclick="openTab('partnerTab', this)">Partner</button>
+    </div>
+
+    <section id="publicTab" class="tab active">
+      <div class="account-open-box">
+        <h2>Open Account</h2>
+
+        <button id="studentAccountRequestToggleBtn" onclick="openStudentAccountRequestModal()">
+          Open Account Form
+        </button>
+      </div>
+
+      <div id="studentAccountRequestModal" class="modal-overlay" onclick="closeModalOnBackdrop(event, 'studentAccountRequestModal')">
+        <div class="modal-panel">
+          <div class="modal-header">
+            <div>
+              <h2>Open Account</h2>
+            </div>
+            <button class="modal-close" onclick="closeStudentAccountRequestModal()">×</button>
+          </div>
+
+          <div class="form-grid">
+            <div><label>Full Name</label><input id="reqFullName" placeholder="Full name"></div>
+            <div><label>Personal Email / Login Email</label><input type="email" id="reqPersonalEmail" placeholder="student@email.com"></div>
+            <div><label>Requested Login Password</label><input id="reqPassword" type="password" minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters"></div>
+            <div><label>Photo URL</label><input id="reqPhotoUrl" placeholder="Optional direct photo link"></div>
+            <div><label>Designation</label><select id="reqDesignation">
+              <option value="">Select Designation</option>
+              <option>Article Student</option>
+              <option>Intern</option>
+              <option>Under Provision</option>
+              <option>Manager</option>
+            </select></div>
+            <div><label>Registration No.</label><input id="reqRegistrationNo" placeholder="ICAB registration no."></div>
+            <div><label>Joining Date</label><input type="date" id="reqJoiningDate"></div>
+            <div><label>CC Complete Date</label><input type="date" id="reqCcCompleteDate"></div>
+            <div><label>CA Level</label><select id="reqCaLevel">
+              <option value="">Select CA Level</option>
+              <option>CL</option>
+              <option>PL</option>
+              <option>AL</option>
+              <option>Complete</option>
+            </select></div>
+            <div><label>CA Result Summary</label><select id="reqCaResults">
+              <option value="">Select Subject Pass Summary</option>
+              <option>0 Subjects Passed</option>
+              <option>1 Subject Passed</option>
+              <option>2 Subjects Passed</option>
+              <option>3 Subjects Passed</option>
+              <option>4 Subjects Passed</option>
+              <option>5 Subjects Passed</option>
+              <option>6 Subjects Passed</option>
+              <option>7 Subjects Passed</option>
+              <option>8 Subjects Passed</option>
+              <option>9 Subjects Passed</option>
+              <option>10 Subjects Passed</option>
+              <option>11 Subjects Passed</option>
+              <option>12 Subjects Passed</option>
+              <option>13 Subjects Passed</option>
+              <option>14 Subjects Passed</option>
+              <option>15 Subjects Passed</option>
+              <option>16 Subjects Passed</option>
+              <option>17 Subjects Passed</option>
+            </select></div>
+            <div><label>Branch</label><select id="reqBranch">
+              <option value="">Select Branch</option>
+              <option>Principal Branch</option>
+              <option>Bangla Motor Branch</option>
+              <option>Panthapath Branch</option>
+              <option>Niketon Branch</option>
+            </select></div>
+            <div><label>Phone</label><input id="reqPhone" placeholder="Private phone"></div>
+            <div><label>Birth Date</label><input type="date" id="reqBirthDate"></div>
+            <div><label>Address</label><input id="reqAddress" placeholder="Private address"></div>
+          </div>
+
+          <br>
+
+          <label>Notes</label>
+          <textarea id="reqNotes" placeholder="Optional message"></textarea>
+
+          <div class="btn-row">
+            <button onclick="submitStudentAccountRequest()">Submit Account Request</button>
+            <button class="dark" onclick="clearStudentAccountRequestForm()">Clear</button>
+            <button class="light" onclick="closeStudentAccountRequestModal()">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="publicProfileModal" class="modal-overlay" onclick="closeModalOnBackdrop(event, 'publicProfileModal')">
+        <div class="modal-panel">
+          <div class="modal-header">
+            <h2>Full Profile</h2>
+            <button class="modal-close" onclick="closePublicProfileModal()">×</button>
+          </div>
+          <div id="publicProfileModalContent"></div>
+        </div>
+      </div>
+
+
+      <div class="card">
+        <h2>All Profiles</h2>
+        <input class="search" id="publicSearch" placeholder="Search..." oninput="renderPublicStudents()">
+        <div id="publicStudentList"></div>
+      </div>
+    </section>
+
+    <section id="studentTab" class="tab"><div id="studentDashboard"></div></section>
+
+    <section id="fundTab" class="tab">
+      <div class="cards">
+        <div class="card stat"><h3>Opening Balance</h3><div class="value" id="totalOpeningBalance">0.00</div></div>
+        <div class="card stat"><h3>Cash in Hand Opening</h3><div class="value" id="totalCashInHandOpening">0.00</div></div>
+        <div class="card stat"><h3>Total Due</h3><div class="value" id="totalDueBalance">0.00</div></div>
+        <div class="card stat"><h3>Total Received</h3><div class="value" id="totalReceivedBalance">0.00</div></div>
+        <div class="card stat"><h3>Total Payment</h3><div class="value" id="totalPaymentBalance">0.00</div></div>
+        <div class="card stat"><h3>Loan Disbursed</h3><div class="value" id="totalLoanDisbursed">0.00</div></div>
+        <div class="card stat"><h3>Loan Returned</h3><div class="value" id="totalLoanReturned">0.00</div></div>
+        <div class="card stat"><h3>Loan Receivable</h3><div class="value" id="totalLoanReceivable">0.00</div></div>
+        <div class="card stat"><h3>Fund Remaining Balance</h3><div class="value" id="fundRemainingBalance">0.00</div></div>
+      </div>
+
+      <div id="fundNameManager" class="card hidden">
+        <h2>Fund Name Setup</h2>
+
+        <h3>Create / Update Fund Name</h3>
+        <div class="form-grid">
+          <div><label>Fund Name</label><input id="newFundName" placeholder="Example: Welfare Fund"></div>
+          <div><label>Description</label><input id="newFundDescription" placeholder="Optional"></div>
+        </div>
+        <div class="btn-row">
+          <button onclick="saveFundName()">Save Fund Name</button>
+          <button class="dark" onclick="clearFundNameForm()">Clear</button>
+        </div>
+
+        <div style="display:none !important;">
+          <hr style="border:none; border-top:1px solid var(--border); margin:22px 0;">
+
+          <h3>Reset / Delete Existing Fund</h3>
+
+          <div class="form-grid">
+            <div>
+              <label>Select Fund</label>
+              <select id="fundManageSelect"></select>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="warning" onclick="resetSelectedFundData()">Reset Fund Data</button>
+            <button class="danger" onclick="deleteSelectedFund()">Delete Fund</button>
+          </div>
+
+          <br>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Fund Name</th>
+              <th>Description</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="fundManagementTable"></tbody>
+        </table>
+      </div>
+
+      <div id="openingBalanceManager" class="card hidden" style="display:none !important;">
+        <h2>Add / Update Opening Balance</h2>
+        <div class="form-grid">
+          <div><label>Fund Name</label><select id="openingFund"></select></div>
+          <div><label>Student</label><select id="openingStudent"></select></div>
+          <div><label>Opening Balance</label><input type="number" id="openingAmount" placeholder="Example: 1000"></div>
+          <div><label>Status</label><select id="openingStatus"><option>Active</option><option>Inactive</option></select></div>
+          <div><label>Remarks</label><input id="openingRemarks" placeholder="Previous due / previous fund balance"></div>
+        </div>
+        <div class="btn-row">
+          <button onclick="saveOpeningBalance()">Save Opening Balance</button>
+          <button class="dark" onclick="clearOpeningBalanceForm()">Clear</button>
+        </div>
+      </div>
+
+      <div class="card" style="display:none !important;">
+        <h2>Opening Balance List</h2>
+        <table>
+          <thead><tr><th>Fund</th><th>Name</th><th>Opening Balance</th><th>Remarks</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="openingBalanceTable"></tbody>
+        </table>
+      </div>
+
+      <div id="cashInHandOpeningManager" class="card hidden">
+        <h2>Add / Update Cash in Hand Opening Balance</h2>
+        <div class="form-grid">
+          <div><label>Fund Name</label><select id="cashOpeningFund"></select></div>
+          <div><label>Fund Manager / Cash Holder</label><select id="cashOpeningHolder"></select></div>
+          <div><label>Cash in Hand Opening Balance</label><input type="number" id="cashOpeningAmount" placeholder="Example: 1000"></div>
+          <div><label>Opening Date</label><input type="date" id="cashOpeningDate"></div>
+          <div><label>Status</label><select id="cashOpeningStatus"><option>Active</option><option>Inactive</option></select></div>
+          <div><label>Remarks</label><input id="cashOpeningRemarks" placeholder="Cash in hand with fund manager"></div>
+        </div>
+        <div class="btn-row">
+          <button onclick="saveCashInHandOpening()">Save Cash in Hand</button>
+          <button class="dark" onclick="clearCashInHandOpeningForm()">Clear</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Cash in Hand Opening Balance List</h2>
+        <table>
+          <thead><tr><th>Fund</th><th>Fund Manager / Cash Holder</th><th>Opening Date</th><th>Cash in Hand</th><th>Remarks</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="cashInHandOpeningTable"></tbody>
+        </table>
+      </div>
+
+      <div class="row">
+        <div class="card">
+          <h2>Add Receivable</h2>
+          <div class="form-grid">
+            <div><label>Fund Name</label><select id="receivableFund"></select></div>
+            <div><label>Student</label><select id="receivableStudent"></select></div>
+            <div><label>Amount</label><input type="number" id="receivableAmount" placeholder="Example: 500"></div>
+            <div><label>Due Date</label><input type="date" id="receivableDueDate"></div>
+            <div><label>Description</label><input id="receivableDescription" placeholder="Monthly fund"></div>
+          </div>
+          <div class="btn-row"><button onclick="addReceivable()">Add Receivable</button></div>
+        </div>
+
+        <div class="card">
+          <h2>Receive Fund</h2>
+          <div class="form-grid">
+            <div><label>Fund Name</label><select id="paymentFund" onchange="renderPaymentReceivableOptions()"></select></div>
+            <div><label>Student</label><select id="paymentStudent" onchange="renderPaymentReceivableOptions()"></select></div>
+            <div><label>Linked Receivable</label><select id="paymentReceivable" onchange="syncPaymentFromLinkedReceivable()"></select></div>
+            <div><label>Amount</label><input type="number" id="paymentAmount" placeholder="Example: 500"></div>
+            <div><label>Payment Date</label><input type="date" id="paymentDate"></div>
+            <div><label>Method</label><select id="paymentMethod"><option>Cash</option><option>Bkash</option><option>Nagad</option><option>Bank</option><option>Other</option></select></div>
+            <div><label>Reference No.</label><input id="paymentReference" placeholder="Optional"></div>
+            <div><label>Note</label><input id="paymentNote" placeholder="Optional"></div>
+          </div>
+          <div class="btn-row"><button class="success" onclick="addPayment()">Receive Fund</button></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Fund Payment / Expense</h2>
+        <div class="form-grid">
+          <div><label>Fund Name</label><select id="expenseFund"></select></div>
+          <div><label>Payment Date</label><input type="date" id="expenseDate"></div>
+          <div><label>Payee Name</label><input id="expensePayee" placeholder="Paid to"></div>
+          <div><label>Amount</label><input type="number" id="expenseAmount" placeholder="Example: 300"></div>
+          <div><label>Description</label><input id="expenseDescription" placeholder="Tea / Stationery / Other"></div>
+          <div><label>Method</label><select id="expenseMethod"><option>Cash</option><option>Bkash</option><option>Nagad</option><option>Bank</option><option>Other</option></select></div>
+          <div><label>Reference No.</label><input id="expenseReference" placeholder="Optional"></div>
+          <div><label>Note</label><input id="expenseNote" placeholder="Optional"></div>
+        </div>
+        <div class="btn-row"><button class="warning" onclick="addFundPayment()">Add Fund Payment</button></div>
+      </div>
+
+      <div class="card">
+        <h2>Daily Voucher</h2>
+        <div class="form-grid">
+          <div><label>Voucher Date</label><input type="date" id="voucherDate"></div>
+          <div><label>Fund Name</label><select id="voucherFund"></select></div>
+          <div><label>Voucher Type</label><select id="voucherType"><option>Combined</option><option>Received</option><option>Payment</option></select></div>
+        </div>
+        <div class="btn-row"><button onclick="printDailyVoucher()">Print Daily Voucher</button></div>
+      </div>
+
+      <div class="card">
+        <h2>Monthly Payment Sheet</h2>
+        <div class="form-grid">
+          <div><label>Month</label><input type="month" id="monthlySheetMonth"></div>
+          <div><label>Fund Name</label><select id="monthlySheetFund"></select></div>
+        </div>
+        <div class="btn-row"><button onclick="printMonthlySheet()">Print Monthly Sheet</button></div>
+      </div>
+
+      <div class="card" id="fundLoanSummaryCard">
+        <h2>Loan Summary</h2>
+        <div class="cards">
+          <div class="card stat"><h3>Total Loan Disbursed</h3><div class="value" id="loanSummaryDisbursed">0.00</div></div>
+          <div class="card stat"><h3>Total Loan Returned</h3><div class="value" id="loanSummaryReturned">0.00</div></div>
+          <div class="card stat"><h3>Fund Loan Receivable</h3><div class="value" id="loanSummaryReceivable">0.00</div></div>
+          <div class="card stat"><h3>Waiting for Fund Manager</h3><div class="value" id="loanSummaryPendingFund">0</div></div>
+          <div class="card stat"><h3>Waiting for Master</h3><div class="value" id="loanSummaryPendingMaster">0</div></div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th><th>ID</th><th>Name</th><th>Fund</th><th>Approved Loan</th><th>Returned</th><th>Loan Receivable</th><th>Status</th><th>Purpose</th>
+              </tr>
+            </thead>
+            <tbody id="fundLoanSummaryTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" id="loanReturnCard">
+        <h2>Receive Loan Return</h2>
+        <div class="form-grid">
+          <div><label>Loan Receivable</label><select id="loanReturnLoan" onchange="syncLoanReturnAmount()"></select></div>
+          <div><label>Return Amount</label><input type="number" id="loanReturnAmount" min="0.01" step="0.01" placeholder="Amount received"></div>
+          <div><label>Return Date</label><input type="date" id="loanReturnDate"></div>
+          <div><label>Method</label><select id="loanReturnMethod"><option>Cash</option><option>Bkash</option><option>Nagad</option><option>Bank</option><option>Other</option></select></div>
+          <div><label>Reference No.</label><input id="loanReturnReference" placeholder="Optional"></div>
+          <div><label>Note</label><input id="loanReturnNote" placeholder="Optional"></div>
+        </div>
+        <div class="btn-row"><button class="success" onclick="receiveLoanReturn()">Receive Loan Return</button></div>
+      </div>
+
+      <div class="card" id="fundLoanReviewCard">
+        <h2>Loan Applications</h2>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th><th>ID</th><th>Name</th><th>Fund</th><th>Requested Amount</th><th>Purpose</th><th>Status</th><th>Fund Manager Note</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="fundLoanReviewTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Receivable List</h2>
+        <input class="search" id="receivableSearch" placeholder="Search receivable..." oninput="renderFundTables()">
+        <table>
+          <thead><tr><th>Fund</th><th>Name</th><th>Description</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Paid At</th></tr></thead>
+          <tbody id="receivableTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Received Fund History</h2>
+        <input class="search" id="paymentSearch" placeholder="Search received fund..." oninput="renderFundTables()">
+        <table>
+          <thead><tr><th>Fund</th><th>Name</th><th>Description</th><th>Amount</th><th>Payment Date</th><th>Method</th><th>Reference</th><th>Note</th></tr></thead>
+          <tbody id="paymentTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Fund Payment / Expense History</h2>
+        <input class="search" id="expenseSearch" placeholder="Search payment/expense..." oninput="renderFundTables()">
+        <table>
+          <thead><tr><th>Fund</th><th>Date</th><th>Payee</th><th>Description</th><th>Amount</th><th>Method</th><th>Reference</th><th>Note</th></tr></thead>
+          <tbody id="expenseTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="dataTab" class="tab">
+      <div class="card">
+        <h2>Data Manager</h2>
+
+        <div class="data-action-grid">
+          <div class="data-action-card">
+            <h3>Add Data</h3>
+            <button onclick="openAddStudentModal()">Add</button>
+          </div>
+
+          <div class="data-action-card">
+            <h3>Review Requests</h3>
+            <button class="warning" onclick="scrollToDataManagerRequests()">Go to Review List</button>
+          </div>
+
+          <div class="data-action-card">
+            <h3>Data List</h3>
+            <button class="dark" onclick="scrollToStudentDataList()">Go to List</button>
+          </div>
+
+          <div class="data-action-card">
+            <h3>Branch Wise List</h3>
+            <button onclick="scrollToOrganogramList()">List / Print</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="organogramListCard">
+        <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
+          <h2>Branch Wise List</h2>
+          <button onclick="printServerOrganogram()">Print Branch Wise List</button>
+        </div>
+        <table>
+          <thead><tr><th>SL</th><th>ID</th><th>Name</th><th>Designation</th><th>Joining Date</th><th>Branch</th><th>CA Level</th><th>CA Result</th><th>Status</th></tr></thead>
+          <tbody id="serverOrganogramTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card" id="accountReviewListCard">
+        <h2>Account Requests</h2>
+        <table>
+          <thead><tr><th>Date</th><th>Name</th><th>Email</th><th>Branch</th><th>Status</th><th>Assigned ID</th><th>Action</th></tr></thead>
+          <tbody id="reviewRequestTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card" id="caUpdateApprovalCard">
+        <h2>CA Status Update Requests</h2>
+        <table>
+          <thead><tr><th>Date</th><th>Name</th><th>Current CA Level</th><th>Requested CA Level</th><th>Current Result</th><th>Requested Result</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="caUpdateRequestTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card" id="articleConversionRequestCard">
+        <h2>Under Provision → Article Student Conversion</h2>
+        <p class="subtitle">Data Manager submits the conversion. Master Account / Top Senior gives final approval.</p>
+        <div style="overflow-x:auto;">
+          <table class="article-conversion-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Current ID</th>
+                <th>New Article ID</th>
+                <th>Name</th>
+                <th>Registration No.</th>
+                <th>CC Complete Date</th>
+                <th>Student Note</th>
+                <th>Data Manager Note</th>
+                <th>Status</th>
+                <th>Master Note</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="articleConversionDataManagerTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" id="studentDataListCard">
+        <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
+          <div>
+            <h2>Data List</h2>
+          </div>
+          <button onclick="openAddStudentModal()">Add</button>
+        </div>
+
+        <input class="search" id="dataSearch" placeholder="Search student data..." oninput="renderDataManagerList()">
+        <table>
+          <thead><tr><th>ID</th><th>Name</th><th>Designation</th><th>Reg. No.</th><th>CA Result</th><th>CC Complete Date</th><th>Branch</th><th>Fund Role</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="dataManagerTable"></tbody>
+        </table>
+      </div>
+
+      <div id="reviewRequestModal" class="modal-overlay hidden">
+        <div class="modal-panel">
+          <div class="modal-header">
+            <h2>Review Account Request</h2>
+            <button class="modal-close" onclick="closeReviewRequestModal()" title="Close" aria-label="Close">×</button>
+          </div>
+
+          <div class="modal-body">
+
+            <div class="form-grid">
+              <div><label>Request ID</label><input id="reviewRequestId" readonly placeholder="Load a request first"></div>
+              <div><label>Assigned ID</label><input id="reviewAssignedStudentId" placeholder="Example: ST-001"></div>
+              <div><label>Review Note</label><input id="reviewNote" placeholder="Checked and recommended for approval"></div>
+            </div>
+
+            <div id="reviewRequestDetailsBox" class="request-details-box">
+              <h3>Submitted Details</h3>
+              <div id="reviewRequestDetails"></div>
+            </div>
+
+            <div class="btn-row">
+              <button onclick="markRequestReviewed()">Mark as Reviewed</button>
+              <button class="danger" onclick="rejectRequestByDataManager()">Reject Request</button>
+              <button class="dark" onclick="clearReviewForm()">Clear Review Form</button>
+              <button class="light" onclick="closeReviewRequestModal()">Close Panel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="articleConversionModal" class="modal-overlay hidden" onclick="closeModalOnBackdrop(event, 'articleConversionModal')">
+        <div class="modal-panel">
+          <div class="modal-header">
+            <h2>Convert Under Provision to Article Student</h2>
+            <button class="modal-close" onclick="closeArticleConversionModal()">×</button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="articleConversionStudentId">
+            <input type="hidden" id="articleConversionRequestId">
+
+            <div class="request-details-box" style="display:block;">
+              <div class="request-detail-grid">
+                <div class="request-detail-item"><span>Student ID</span><strong id="articleConversionStudentIdText"></strong></div>
+                <div class="request-detail-item"><span>Name</span><strong id="articleConversionStudentName"></strong></div>
+                <div class="request-detail-item"><span>Current Designation</span><strong>Under Provision</strong></div>
+                <div class="request-detail-item"><span>Requested Designation</span><strong>Article Student</strong></div>
+              </div>
+            </div>
+
+            <div class="form-grid" style="margin-top:16px;">
+              <div>
+                <label>New Article Student ID</label>
+                <input id="articleConversionNewStudentId" placeholder="Example: ST-008">
+              </div>
+              <div>
+                <label>ICAB Registration No.</label>
+                <input id="articleConversionRegistrationNo" placeholder="Enter registration number">
+              </div>
+              <div>
+                <label>CC Complete Date</label>
+                <input type="date" id="articleConversionCcCompleteDate">
+              </div>
+              <div style="grid-column:1/-1;">
+                <label>Data Manager Note</label>
+                <input id="articleConversionDataManagerNote" placeholder="Checked and recommended for Article Student conversion">
+              </div>
+            </div>
+
+            <div class="notice" style="margin-top:14px;">
+              On final approval, the student's ID will change from the current Under Provision ID to the new Article Student ID. Existing student records will be migrated to the new ID.
+            </div>
+
+            <div class="btn-row">
+              <button class="success" onclick="submitArticleConversionRequest()">Send to Master Approval</button>
+              <button class="light" onclick="closeArticleConversionModal()">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="studentFormModal" class="modal-overlay hidden">
+        <div class="modal-panel">
+          <div class="modal-header">
+            <h2 id="studentFormModalTitle">Add / Edit Data</h2>
+            <button class="modal-close" onclick="closeStudentFormModal()" title="Close" aria-label="Close">×</button>
+          </div>
+
+          <div class="modal-body">
+
+            <input type="hidden" id="editingStudentId">
+            <div class="form-grid">
+              <div><label>ID</label><input id="studentId" placeholder="Example: ST-001"></div>
+              <div><label>Full Name</label><input id="fullName" placeholder="Full name"></div>
+              <div><label>Photo URL</label><input id="photoUrl" placeholder="Paste photo direct URL here"></div>
+              <div><label>Designation</label><select id="designation">
+              <option value="">Select Designation</option>
+              <option>Article Student</option>
+              <option>Intern</option>
+              <option>Under Provision</option>
+              <option>Manager</option>
+            </select></div>
+              <div><label>Registration No.</label><input id="registrationNo" placeholder="ICAB registration no."></div>
+              <div><label>Joining Date</label><input type="date" id="joiningDate"></div>
+              <div><label>CC Complete Date</label><input type="date" id="ccCompleteDate"></div>
+              <div><label>CA Level</label><select id="caLevel">
+              <option value="">Select CA Level</option>
+              <option>CL</option>
+              <option>PL</option>
+              <option>AL</option>
+              <option>Complete</option>
+            </select></div>
+              <div><label>CA Result Summary</label><select id="caResults">
+              <option value="">Select Subject Pass Summary</option>
+              <option>0 Subjects Passed</option>
+              <option>1 Subject Passed</option>
+              <option>2 Subjects Passed</option>
+              <option>3 Subjects Passed</option>
+              <option>4 Subjects Passed</option>
+              <option>5 Subjects Passed</option>
+              <option>6 Subjects Passed</option>
+              <option>7 Subjects Passed</option>
+              <option>8 Subjects Passed</option>
+              <option>9 Subjects Passed</option>
+              <option>10 Subjects Passed</option>
+              <option>11 Subjects Passed</option>
+              <option>12 Subjects Passed</option>
+              <option>13 Subjects Passed</option>
+              <option>14 Subjects Passed</option>
+              <option>15 Subjects Passed</option>
+              <option>16 Subjects Passed</option>
+              <option>17 Subjects Passed</option>
+            </select></div>
+              <div><label>Branch</label><select id="branch">
+              <option value="">Select Branch</option>
+              <option>Principal Branch</option>
+              <option>Bangla Motor Branch</option>
+              <option>Panthapath Branch</option>
+              <option>Niketon Branch</option>
+            </select></div>
+              <div><label>Fund Responsibility</label><select id="fundResponsibility"><option value="Student">Fund Member</option><option>Fund Manager</option><option>Assistant Fund Manager</option></select></div>
+              <div><label>Status</label><select id="studentStatus"><option>Active</option><option>Inactive</option></select></div>
+              <div class="master-credential-field"><label>Personal Email / Login Email</label><input type="email" id="studentLoginEmail" placeholder="student@email.com"></div>
+              <div class="master-credential-field"><label>Temporary Login Password</label><input id="studentTempPassword" placeholder="Example: st123456"></div>
+              <div><label>Private Phone</label><input id="privatePhone"></div>
+              <div><label>Private Email</label><input id="privateEmail"></div>
+              <div><label>Birth Date</label><input type="date" id="birthDate"></div>
+              <div><label>Private Address</label><input id="privateAddress"></div>
+            </div>
+
+            <br>
+            <label>Private Notes</label><textarea id="privateNotes"></textarea>
+            <div class="btn-row">
+              <button onclick="saveStudent()">Save</button>
+              <button class="dark" onclick="clearStudentForm()">Clear</button>
+              <button class="light" onclick="closeStudentFormModal()">Close Panel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="masterTab" class="tab">
+      <div class="card" id="masterAccessAssignmentCard">
+        <h2>System Access Assignment</h2>
+        <div class="form-grid">
+          <div>
+            <label>Select Student</label>
+            <select id="accessAssignmentStudent" onchange="loadSelectedStudentAccess()">
+              <option value="">Select student</option>
+            </select>
+          </div>
+          <div>
+            <label>System Access</label>
+            <div style="display:flex;gap:22px;align-items:center;min-height:52px;flex-wrap:wrap;padding:8px 4px;">
+              <label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:700;">
+                <input type="checkbox" id="assignFundManagerAccess" style="width:auto;"> Fund Manager
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:700;">
+                <input type="checkbox" id="assignDataManagerAccess" style="width:auto;"> Data Manager
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:700;">
+                <input type="checkbox" id="assignTopSeniorAccess" style="width:auto;"> Top Senior
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button onclick="saveStudentManagerAccess()">Save Access</button>
+          <button class="danger" onclick="removeStudentManagerAccess()">Remove Access</button>
+        </div>
+        <div style="margin-top:18px;overflow-x:auto;">
+          <table>
+            <thead><tr><th>ID</th><th>Name</th><th>Login Email</th><th>Fund Manager</th><th>Data Manager</th><th>Top Senior</th><th>Action</th></tr></thead>
+            <tbody id="managerAccessAssignmentTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Article Student Conversion Approval</h2>
+        <p class="subtitle">Final approval for converting an Under Provision student to Article Student.</p>
+        <div style="overflow-x:auto;">
+          <table class="article-conversion-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Current ID</th>
+                <th>New Article ID</th>
+                <th>Name</th>
+                <th>Registration No.</th>
+                <th>CC Complete Date</th>
+                <th>Student Note</th>
+                <th>Data Manager Note</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="masterArticleConversionTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Loan Approval</h2>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th><th>ID</th><th>Name</th><th>Fund</th><th>Requested</th><th>Approved Amount</th><th>Purpose</th><th>Fund Manager Note</th><th>Status</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="masterLoanApprovalTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Account Approval</h2>
+<table>
+          <thead><tr><th>Date</th><th>Name</th><th>Email</th><th>Temporary Password</th><th>CC Complete Date</th><th>Assigned ID</th><th>Review Note</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="masterRequestTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Login Credentials</h2>
+<table>
+          <thead><tr><th>ID</th><th>Name</th><th>Login Email</th><th>Temporary Password</th><th>Role</th><th>Status</th><th>Created At</th><th>Action</th></tr></thead>
+          <tbody id="credentialTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Login User / Role List</h2>
+        <table>
+          <thead><tr><th>User Email</th><th>Name</th><th>ID</th><th>Role</th><th>Status</th></tr></thead>
+          <tbody id="profileUserTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="managerLeaveTab" class="tab leave-workflow-tab">
+      <div class="card leave-workflow-card leave-pending-card">
+        <h2>Leave Applications</h2>
+        <div class="leave-table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>ID</th><th>Name</th><th>Branch</th><th>Leave Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="managerLeaveTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card leave-workflow-card leave-history-card">
+        <h2>Last 7 Days Actions</h2>
+        <div class="leave-table-wrap">
+          <table>
+            <thead><tr><th>Action Date</th><th>ID</th><th>Name</th><th>Leave Type</th><th>From</th><th>To</th><th>Days</th><th>Manager Action</th><th>Manager Note</th><th>Current Status</th></tr></thead>
+            <tbody id="managerRecentLeaveTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="partnerTab" class="tab leave-workflow-tab">
+      <div class="partner-professional-card">
+        <div id="partnerProfileBox"></div>
+      </div>
+
+      <div class="card leave-workflow-card leave-pending-card">
+        <h2>Leave Applications</h2>
+        <div class="leave-table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>ID</th><th>Name</th><th>Branch</th><th>Leave Type</th><th>From</th><th>To</th><th>Days</th><th>Manager Note</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="partnerLeaveTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card leave-workflow-card leave-history-card">
+        <h2>Last 7 Days Actions</h2>
+        <div class="leave-table-wrap">
+          <table>
+            <thead><tr><th>Decision Date</th><th>ID</th><th>Name</th><th>Leave Type</th><th>From</th><th>To</th><th>Days</th><th>Final Status</th><th>Partner Note</th></tr></thead>
+            <tbody id="partnerRecentLeaveTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+
+  <div id="credentialEditModal" class="modal-overlay hidden" onclick="closeModalOnBackdrop(event, 'credentialEditModal')">
+    <div class="modal-panel credential-edit-panel">
+      <div class="modal-header">
+        <h2>Login Credential</h2>
+        <button class="modal-close" onclick="closeCredentialEditModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="credentialEditId">
+        <div class="form-grid">
+          <div>
+            <label>ID</label>
+            <input id="credentialStudentId" readonly>
+          </div>
+          <div>
+            <label>Student Name</label>
+            <input id="credentialStudentName">
+          </div>
+          <div>
+            <label>Login Email</label>
+            <input type="email" id="credentialLoginEmail">
+          </div>
+          <div>
+            <label>Temporary Password</label>
+            <input id="credentialTempPassword">
+          </div>
+          <div>
+            <label>Status</label>
+            <select id="credentialStatus">
+              <option>Active</option>
+              <option>Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button onclick="saveCredentialUpdate()">Save Credential</button>
+          <button class="light" onclick="closeCredentialEditModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="masterStudentProfileModal" class="modal-overlay hidden" onclick="closeModalOnBackdrop(event, 'masterStudentProfileModal')">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2 id="masterStudentProfileModalTitle">Profile Details</h2>
+        <button class="modal-close" onclick="closeMasterStudentProfileModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="masterStudentProfileBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="printArea" class="hidden"></div>
+
+    <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
 
