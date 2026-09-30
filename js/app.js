@@ -424,8 +424,8 @@ document.addEventListener("DOMContentLoaded", init);
 
     async function loadFunds() {
       const result = await db.from("student_funds").select("*").order("fund_name", { ascending: true });
-      if (result.error) { funds = [{ fund_name: "General Fund" }]; return; }
-      funds = result.data && result.data.length ? result.data : [{ fund_name: "General Fund" }];
+      if (result.error) { funds = [{ fund_name: "General Fund", __fallback: true }]; return; }
+      funds = result.data && result.data.length ? result.data : [{ fund_name: "General Fund", __fallback: true }];
     }
 
     function fillFundSelect(id) {
@@ -840,6 +840,16 @@ document.addEventListener("DOMContentLoaded", init);
           }).join("")
         : "<tr><td colspan='10'>No loan application found.</td></tr>";
 
+      // Loan applications can only use real active funds from student_funds.
+      // Existing/legacy fund rows with a blank or NULL status are treated as Active,
+      // matching the rest of this system. The local "General Fund" fallback is excluded.
+      const activeLoanFunds = (funds || []).filter(f => {
+        if (!f || f.__fallback || !String(f.fund_name || "").trim()) return false;
+        const fundStatus = String(f.status || "").trim().toLowerCase();
+        return !fundStatus || fundStatus === "active";
+      });
+      const hasActiveLoanFund = activeLoanFunds.length > 0;
+
       const loanApplicationHtml = currentProfile
         && currentProfile.role === "student"
         && currentProfile.student_id === studentId
@@ -848,16 +858,19 @@ document.addEventListener("DOMContentLoaded", init);
             <div class="form-grid">
               <div>
                 <label>Fund</label>
-                <select id="studentLoanFund">
-                  ${funds.map(f => `<option value="${escapeAttribute(f.fund_name)}">${escapeHtml(f.fund_name)}</option>`).join("")}
+                <select id="studentLoanFund" ${hasActiveLoanFund ? "" : "disabled"}>
+                  ${hasActiveLoanFund
+                    ? `<option value="">Select Active Fund</option>` + activeLoanFunds.map(f => `<option value="${escapeAttribute(f.fund_name)}">${escapeHtml(f.fund_name)}</option>`).join("")
+                    : `<option value="">No active fund available</option>`}
                 </select>
               </div>
-              <div><label>Loan Amount</label><input type="number" id="studentLoanAmount" min="1" step="0.01" placeholder="Example: 5000"></div>
-              <div style="grid-column:1/-1;"><label>Purpose</label><textarea id="studentLoanPurpose" placeholder="Reason / purpose for the loan"></textarea></div>
+              <div><label>Loan Amount</label><input type="number" id="studentLoanAmount" min="1" step="0.01" placeholder="Example: 5000" ${hasActiveLoanFund ? "" : "disabled"}></div>
+              <div style="grid-column:1/-1;"><label>Purpose</label><textarea id="studentLoanPurpose" placeholder="Reason / purpose for the loan" ${hasActiveLoanFund ? "" : "disabled"}></textarea></div>
             </div>
             <div class="btn-row">
-              <button onclick="submitFundLoanApplication()" ${hasActiveLoanRequest ? "disabled" : ""}>Apply for Loan</button>
+              <button onclick="submitFundLoanApplication()" ${(hasActiveLoanRequest || !hasActiveLoanFund) ? "disabled" : ""}>Apply for Loan</button>
             </div>
+            ${!hasActiveLoanFund ? `<div class="notice">No active fund is currently available for a loan application.</div>` : ""}
             ${hasActiveLoanRequest ? `<div class="notice">You already have a loan application waiting for review/approval.</div>` : ""}
           </div>`
         : "";
@@ -1632,9 +1645,32 @@ document.addEventListener("DOMContentLoaded", init);
       const amount = Number(document.getElementById("studentLoanAmount")?.value || 0);
       const purpose = document.getElementById("studentLoanPurpose")?.value.trim() || "";
 
-      if (!fundName) { showMessage("Please select a fund.", "error"); return; }
+      if (!fundName) { showMessage("Please select an active fund.", "error"); return; }
       if (!(amount > 0)) { showMessage("Please enter a valid loan amount.", "error"); return; }
       if (!purpose) { showMessage("Please enter the loan purpose.", "error"); return; }
+
+      // Re-check Supabase at submit time so an inactive/non-existent fund cannot be submitted.
+      // Blank/NULL status is accepted as Active for legacy fund rows, matching the UI.
+      const activeFundCheck = await db
+        .from("student_funds")
+        .select("fund_name,status")
+        .eq("fund_name", fundName)
+        .limit(1);
+
+      if (activeFundCheck.error) {
+        showMessage("Could not verify the selected fund: " + activeFundCheck.error.message, "error");
+        return;
+      }
+
+      const selectedFundRow = (activeFundCheck.data || [])[0];
+      const selectedFundStatus = selectedFundRow ? String(selectedFundRow.status || "").trim().toLowerCase() : "";
+      const selectedFundIsActive = !!selectedFundRow && (!selectedFundStatus || selectedFundStatus === "active");
+
+      if (!selectedFundIsActive) {
+        showMessage("Loan can only be applied from an active fund. Please select an active fund.", "error");
+        await loadStudentDashboard();
+        return;
+      }
 
       const pendingCheck = await db
         .from("fund_loan_applications")
@@ -3784,4 +3820,3 @@ document.addEventListener("DOMContentLoaded", init);
 
       showMessage("Profile deleted successfully.", "success");
     }
-
