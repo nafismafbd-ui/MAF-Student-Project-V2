@@ -135,6 +135,10 @@ document.addEventListener("DOMContentLoaded", init);
       return !!currentProfile && currentProfile.role === "master";
     }
 
+    function isTopSeniorAccount() {
+      return !!currentProfile && currentAdditionalRoles.includes("top_senior");
+    }
+
     function hasAccessRole(role) {
       if (!currentProfile) return false;
       if (isMasterPower()) {
@@ -183,6 +187,8 @@ document.addEventListener("DOMContentLoaded", init);
 
       if (isMasterPower()) openTabById("masterTab");
       else if (roleText === "partner") openTabById("partnerTab");
+      else if (currentAdditionalRoles.includes("fund_manager")) openTabById("fundTab");
+      else if (currentAdditionalRoles.includes("data_manager")) openTabById("dataTab");
       else if (roleText === "fund_manager") openTabById("fundTab");
       else if (roleText === "data_manager") openTabById("dataTab");
       else if (roleText === "manager") openTabById("managerLeaveTab");
@@ -1497,8 +1503,7 @@ document.addEventListener("DOMContentLoaded", init);
       const select = document.getElementById("loanReturnLoan");
       if (!card || !select || !currentProfile) return;
 
-      const canReceive = currentProfile.role === "fund_manager"
-        || (!isMasterPower() && hasAccessRole("fund_manager"));
+      const canReceive = !isMasterPower() && hasAccessRole("fund_manager");
       card.classList.toggle("hidden", !canReceive);
       if (!canReceive) return;
 
@@ -1525,7 +1530,7 @@ document.addEventListener("DOMContentLoaded", init);
     }
 
     async function receiveLoanReturn() {
-      if (!currentProfile || !(currentProfile.role === "fund_manager" || (!isMasterPower() && hasAccessRole("fund_manager")))) {
+      if (!currentProfile || isMasterPower() || !hasAccessRole("fund_manager")) {
         showMessage("Only the Fund Manager can receive loan returns.", "error");
         return;
       }
@@ -3322,10 +3327,17 @@ document.addEventListener("DOMContentLoaded", init);
 
     async function deactivateStudent(studentId) {
       if (!confirm("Deactivate this student?")) return;
-      const result = await db.from("students").update({ status: "Inactive" }).eq("student_id", studentId);
-      if (result.error) { showMessage(result.error.message, "error"); return; }
-      await db.from("student_login_credentials").update({ status: "Inactive" }).eq("student_id", studentId);
-      await db.from("student_opening_balances").update({ status: "Inactive" }).eq("student_id", studentId);
+
+      if (!isMasterPower() && hasAccessRole("data_manager")) {
+        const delegatedResult = await db.rpc("data_manager_deactivate_student", { p_student_id: studentId });
+        if (delegatedResult.error) { showMessage(delegatedResult.error.message, "error"); return; }
+      } else {
+        const result = await db.from("students").update({ status: "Inactive" }).eq("student_id", studentId);
+        if (result.error) { showMessage(result.error.message, "error"); return; }
+        await db.from("student_login_credentials").update({ status: "Inactive" }).eq("student_id", studentId);
+        await db.from("student_opening_balances").update({ status: "Inactive" }).eq("student_id", studentId);
+      }
+
       await loadPublicStudents();
       await loadStudentDataManager();
       if (isMasterPower()) await loadMasterData();
@@ -3341,8 +3353,10 @@ document.addEventListener("DOMContentLoaded", init);
     }
 
     async function loadMasterData() {
-      const assignmentCard = document.getElementById("masterAccessAssignmentCard");
-      if (assignmentCard) assignmentCard.classList.toggle("hidden", !isActualMaster());
+      const topSeniorCard = document.getElementById("masterTopSeniorAssignmentCard");
+      const managerAssignmentCard = document.getElementById("topSeniorManagerAssignmentCard");
+      if (topSeniorCard) topSeniorCard.classList.toggle("hidden", !isActualMaster());
+      if (managerAssignmentCard) managerAssignmentCard.classList.toggle("hidden", !isTopSeniorAccount());
 
       const profileResult = await db.from("profiles").select("*").order("full_name", { ascending: true });
       if (profileResult.error) { showMessage(profileResult.error.message, "error"); return; }
@@ -3354,7 +3368,7 @@ document.addEventListener("DOMContentLoaded", init);
       await loadFundLoanApplications();
       await loadFundLoanRepayments();
       renderMasterProfiles();
-      renderManagerAccessAssignment();
+      renderManagementAccessPanels();
       renderCredentialTable();
       renderMasterRequestTable();
       renderMasterArticleConversionTable();
@@ -3363,177 +3377,199 @@ document.addEventListener("DOMContentLoaded", init);
 
     async function loadManagerAccessAssignments() {
       managerAccessAssignments = [];
-      if (!currentProfile || currentProfile.role !== "master") return;
-      const result = await db
-        .from("user_access_roles")
-        .select("*")
-        .order("student_id", { ascending: true });
-      if (!result.error) managerAccessAssignments = result.data || [];
-    }
+      if (!isMasterPower()) return;
 
-    function renderManagerAccessAssignment() {
-      const select = document.getElementById("accessAssignmentStudent");
-      const tbody = document.getElementById("managerAccessAssignmentTable");
-      if (!select || !tbody) return;
-
-      const activeStudents = [...students]
-        .filter(s => s.status === "Active")
-        .sort((a, b) => {
-          const idCompare = safe(a.student_id).localeCompare(safe(b.student_id), undefined, { numeric: true, sensitivity: "base" });
-          return idCompare || safe(a.full_name).localeCompare(safe(b.full_name), undefined, { sensitivity: "base" });
-        });
-
-      select.innerHTML = `<option value="">Select student</option>` + activeStudents.map(s =>
-        `<option value="${escapeAttribute(s.student_id)}">${escapeHtml(s.student_id)} - ${escapeHtml(s.full_name)}</option>`
-      ).join("");
-
-      const rows = activeStudents.map(student => {
-        const profile = userProfiles.find(p => String(p.student_id) === String(student.student_id));
-        if (!profile) return null;
-        const roles = managerAccessAssignments
-          .filter(a => a.user_id === profile.id && a.active !== false)
-          .map(a => a.access_role);
-        if (!roles.length) return null;
-        return { student, profile, roles };
-      }).filter(Boolean);
-
-      tbody.innerHTML = rows.length ? rows.map(row => `
-        <tr>
-          <td>${escapeHtml(row.student.student_id)}</td>
-          <td>${escapeHtml(row.student.full_name)}</td>
-          <td>${escapeHtml(row.profile.email || "")}</td>
-          <td>${row.roles.includes("fund_manager") ? "Yes" : "No"}</td>
-          <td>${row.roles.includes("data_manager") ? "Yes" : "No"}</td>
-          <td>${row.roles.includes("top_senior") ? "Yes" : "No"}</td>
-          <td><button class="warning" onclick="editStudentManagerAccess('${escapeAttribute(row.student.student_id)}')">Edit</button> <button class="danger" onclick="removeStudentManagerAccess('${escapeAttribute(row.student.student_id)}')">Remove</button></td>
-        </tr>
-      `).join("") : `<tr><td colspan="7">No delegated system access assigned.</td></tr>`;
-    }
-
-    function getSelectedAccessProfile(studentId) {
-      return userProfiles.find(p => String(p.student_id) === String(studentId));
-    }
-
-    function loadSelectedStudentAccess() {
-      const studentId = document.getElementById("accessAssignmentStudent")?.value || "";
-      const fundBox = document.getElementById("assignFundManagerAccess");
-      const dataBox = document.getElementById("assignDataManagerAccess");
-      const topSeniorBox = document.getElementById("assignTopSeniorAccess");
-      if (!fundBox || !dataBox || !topSeniorBox) return;
-      fundBox.checked = false;
-      dataBox.checked = false;
-      topSeniorBox.checked = false;
-      if (!studentId) return;
-      const profile = getSelectedAccessProfile(studentId);
-      if (!profile) return;
-      const roles = managerAccessAssignments
-        .filter(a => a.user_id === profile.id && a.active !== false)
-        .map(a => a.access_role);
-      fundBox.checked = roles.includes("fund_manager");
-      dataBox.checked = roles.includes("data_manager");
-      topSeniorBox.checked = roles.includes("top_senior");
-    }
-
-    function editStudentManagerAccess(studentId) {
-      const select = document.getElementById("accessAssignmentStudent");
-      if (!select) return;
-      select.value = studentId;
-      loadSelectedStudentAccess();
-      select.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-
-    async function saveStudentManagerAccess() {
-      if (!currentProfile || currentProfile.role !== "master") {
-        showMessage("Only the actual Master Account can assign delegated system access.", "error");
-        return;
-      }
-      const studentId = document.getElementById("accessAssignmentStudent")?.value || "";
-      if (!studentId) {
-        showMessage("Please select a student.", "error");
-        return;
-      }
-      const profile = getSelectedAccessProfile(studentId);
-      if (!profile) {
-        showMessage("This student has no linked login account in profiles. Link the student's Auth account first.", "error");
-        return;
-      }
-      if (profile.role !== "student" && profile.role !== "manager") {
-        showMessage("Select a student login account, not a system account.", "error");
-        return;
-      }
-
-      const roles = [];
-      if (document.getElementById("assignFundManagerAccess")?.checked) roles.push("fund_manager");
-      if (document.getElementById("assignDataManagerAccess")?.checked) roles.push("data_manager");
-      if (document.getElementById("assignTopSeniorAccess")?.checked) roles.push("top_senior");
-
-      // Only one Top Senior can be active at a time.
-      if (roles.includes("top_senior")) {
-        const clearOtherTopSenior = await db
-          .from("user_access_roles")
-          .delete()
-          .eq("access_role", "top_senior")
-          .neq("user_id", profile.id);
-        if (clearOtherTopSenior.error) {
-          showMessage("Top Senior update failed: " + clearOtherTopSenior.error.message, "error");
-          return;
-        }
-      }
-
-      const removeResult = await db.from("user_access_roles").delete().eq("user_id", profile.id);
-      if (removeResult.error) {
-        showMessage("Access update failed: " + removeResult.error.message, "error");
-        return;
-      }
-
-      if (roles.length) {
-        const rows = roles.map(role => ({
-          user_id: profile.id,
-          student_id: studentId,
-          access_role: role,
-          active: true,
-          assigned_by: currentUser.id
-        }));
-        const insertResult = await db.from("user_access_roles").insert(rows);
-        if (insertResult.error) {
-          showMessage("Access save failed: " + insertResult.error.message, "error");
-          return;
-        }
-      }
-
-      await loadManagerAccessAssignments();
-      renderManagerAccessAssignment();
-      loadSelectedStudentAccess();
-      showMessage(roles.length ? "Delegated system access saved." : "Delegated system access removed.", "success");
-    }
-
-    async function removeStudentManagerAccess(studentIdArg = "") {
-      if (!currentProfile || currentProfile.role !== "master") {
-        showMessage("Only the actual Master Account can remove delegated system access.", "error");
-        return;
-      }
-      const studentId = studentIdArg || document.getElementById("accessAssignmentStudent")?.value || "";
-      if (!studentId) {
-        showMessage("Please select a student.", "error");
-        return;
-      }
-      const profile = getSelectedAccessProfile(studentId);
-      if (!profile) {
-        showMessage("No linked login account found for this student.", "error");
-        return;
-      }
-      if (!confirm("Remove Fund Manager, Data Manager and Top Senior access from this student?")) return;
-      const result = await db.from("user_access_roles").delete().eq("user_id", profile.id);
+      const result = await db.rpc("get_management_access_assignments");
       if (result.error) {
-        showMessage("Access removal failed: " + result.error.message, "error");
+        showMessage("Management assignment load failed: " + result.error.message, "error");
+        return;
+      }
+      managerAccessAssignments = result.data || [];
+    }
+
+    function getAssignableManagementPeople() {
+      return [...students]
+        .filter(s => s.status === "Active")
+        .map(student => {
+          const profile = userProfiles.find(p => String(p.student_id) === String(student.student_id));
+          if (!profile) return null;
+          if (!["student", "manager"].includes(profile.role)) return null;
+          if (profile.status && profile.status !== "Active") return null;
+          return { student, profile };
+        })
+        .filter(Boolean)
+        .sort((a, b) => {
+          const idCompare = safe(a.student.student_id).localeCompare(safe(b.student.student_id), undefined, { numeric: true, sensitivity: "base" });
+          return idCompare || safe(a.student.full_name).localeCompare(safe(b.student.full_name), undefined, { sensitivity: "base" });
+        });
+    }
+
+    function getActiveManagementAssignment(accessRole) {
+      return managerAccessAssignments.find(a => a.access_role === accessRole && a.active !== false) || null;
+    }
+
+    function getManagementAssignmentDetails(accessRole) {
+      const assignment = getActiveManagementAssignment(accessRole);
+      if (!assignment) return null;
+      const profile = userProfiles.find(p => String(p.id) === String(assignment.user_id)) || {};
+      const student = students.find(s => String(s.student_id) === String(assignment.student_id || profile.student_id)) || {};
+      return { assignment, profile, student };
+    }
+
+    function managementPersonLabel(details) {
+      if (!details) return "Not assigned";
+      const id = details.student.student_id || details.assignment.student_id || details.profile.student_id || "";
+      const name = details.student.full_name || details.profile.full_name || "";
+      const email = details.profile.email || "";
+      return `${id}${name ? " - " + name : ""}${email ? " | " + email : ""}`;
+    }
+
+    function fillManagementPersonSelect(selectId, selectedStudentId = "") {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+      const people = getAssignableManagementPeople();
+      select.innerHTML = `<option value="">Select student / manager</option>` + people.map(({ student }) =>
+        `<option value="${escapeAttribute(student.student_id)}">${escapeHtml(student.student_id)} - ${escapeHtml(student.full_name)}</option>`
+      ).join("");
+      if (selectedStudentId) select.value = selectedStudentId;
+    }
+
+    function renderManagementAccessPanels() {
+      const topSenior = getManagementAssignmentDetails("top_senior");
+      const fundManager = getManagementAssignmentDetails("fund_manager");
+      const dataManager = getManagementAssignmentDetails("data_manager");
+
+      const currentTopSenior = document.getElementById("currentTopSeniorAssignment");
+      if (currentTopSenior) currentTopSenior.textContent = topSenior ? managementPersonLabel(topSenior) : "No Top Senior assigned.";
+      fillManagementPersonSelect("topSeniorAssignmentStudent", topSenior?.student?.student_id || topSenior?.assignment?.student_id || "");
+
+      const currentFundManager = document.getElementById("currentFundManagerAssignment");
+      if (currentFundManager) currentFundManager.textContent = fundManager ? managementPersonLabel(fundManager) : "No Fund Manager assigned.";
+      fillManagementPersonSelect("fundManagerAssignmentStudent", fundManager?.student?.student_id || fundManager?.assignment?.student_id || "");
+
+      const currentDataManager = document.getElementById("currentDataManagerAssignment");
+      if (currentDataManager) currentDataManager.textContent = dataManager ? managementPersonLabel(dataManager) : "No Data Manager assigned.";
+      fillManagementPersonSelect("dataManagerAssignmentStudent", dataManager?.student?.student_id || dataManager?.assignment?.student_id || "");
+
+      const tbody = document.getElementById("operationalManagerAssignmentTable");
+      if (tbody) {
+        const rows = [
+          ["Fund Manager", fundManager],
+          ["Data Manager", dataManager]
+        ];
+        tbody.innerHTML = rows.map(([label, details]) => {
+          if (!details) return `<tr><td>${label}</td><td colspan="4">Not assigned</td></tr>`;
+          const id = details.student.student_id || details.assignment.student_id || details.profile.student_id || "";
+          const name = details.student.full_name || details.profile.full_name || "";
+          return `<tr><td><strong>${label}</strong></td><td>${escapeHtml(id)}</td><td>${escapeHtml(name)}</td><td>${escapeHtml(details.profile.email || "")}</td><td>Active</td></tr>`;
+        }).join("");
+      }
+    }
+
+    async function assignTopSeniorAccess() {
+      if (!isActualMaster()) {
+        showMessage("Only the actual Master Account can appoint the Top Senior.", "error");
+        return;
+      }
+      const studentId = document.getElementById("topSeniorAssignmentStudent")?.value || "";
+      if (!studentId) {
+        showMessage("Please select a student / manager for Top Senior.", "error");
+        return;
+      }
+      if (!confirm("Assign this person as Top Senior? The previous Top Senior access will be replaced.")) return;
+
+      const result = await db.rpc("assign_top_senior_access", { p_student_id: studentId });
+      if (result.error) {
+        showMessage("Top Senior assignment failed: " + result.error.message, "error");
         return;
       }
       await loadManagerAccessAssignments();
-      renderManagerAccessAssignment();
-      const select = document.getElementById("accessAssignmentStudent");
-      if (select) select.value = studentId;
-      loadSelectedStudentAccess();
-      showMessage("Delegated system access removed.", "success");
+      renderManagementAccessPanels();
+      showMessage("Top Senior assigned successfully.", "success");
+    }
+
+    async function removeTopSeniorAccess() {
+      if (!isActualMaster()) {
+        showMessage("Only the actual Master Account can remove Top Senior access.", "error");
+        return;
+      }
+      if (!getActiveManagementAssignment("top_senior")) {
+        showMessage("No Top Senior is currently assigned.", "error");
+        return;
+      }
+      if (!confirm("Remove the current Top Senior access?")) return;
+
+      const result = await db.rpc("remove_top_senior_access");
+      if (result.error) {
+        showMessage("Top Senior removal failed: " + result.error.message, "error");
+        return;
+      }
+      await loadManagerAccessAssignments();
+      renderManagementAccessPanels();
+      showMessage("Top Senior access removed.", "success");
+    }
+
+    async function assignOperationalManagerRole(accessRole) {
+      if (!isTopSeniorAccount()) {
+        showMessage("Only the selected Top Senior can assign Fund Manager or Data Manager responsibility.", "error");
+        return;
+      }
+      if (!["fund_manager", "data_manager"].includes(accessRole)) {
+        showMessage("Invalid management responsibility.", "error");
+        return;
+      }
+
+      const selectId = accessRole === "fund_manager" ? "fundManagerAssignmentStudent" : "dataManagerAssignmentStudent";
+      const studentId = document.getElementById(selectId)?.value || "";
+      const label = accessRole === "fund_manager" ? "Fund Manager" : "Data Manager";
+      if (!studentId) {
+        showMessage("Please select a student / manager for " + label + ".", "error");
+        return;
+      }
+      if (!confirm(`Assign ${studentId} as ${label}? The previous ${label} access will be replaced.`)) return;
+
+      const result = await db.rpc("assign_operational_management_access", {
+        p_student_id: studentId,
+        p_access_role: accessRole
+      });
+      if (result.error) {
+        showMessage(label + " assignment failed: " + result.error.message, "error");
+        return;
+      }
+
+      await loadManagerAccessAssignments();
+      renderManagementAccessPanels();
+      showMessage(label + " assigned successfully.", "success");
+    }
+
+    async function removeOperationalManagerRole(accessRole) {
+      if (!isTopSeniorAccount()) {
+        showMessage("Only the selected Top Senior can remove Fund Manager or Data Manager responsibility.", "error");
+        return;
+      }
+      if (!["fund_manager", "data_manager"].includes(accessRole)) {
+        showMessage("Invalid management responsibility.", "error");
+        return;
+      }
+
+      const label = accessRole === "fund_manager" ? "Fund Manager" : "Data Manager";
+      if (!getActiveManagementAssignment(accessRole)) {
+        showMessage("No " + label + " is currently assigned.", "error");
+        return;
+      }
+      if (!confirm("Remove the current " + label + " access?")) return;
+
+      const result = await db.rpc("remove_operational_management_access", {
+        p_access_role: accessRole
+      });
+      if (result.error) {
+        showMessage(label + " removal failed: " + result.error.message, "error");
+        return;
+      }
+
+      await loadManagerAccessAssignments();
+      renderManagementAccessPanels();
+      showMessage(label + " access removed.", "success");
     }
 
     function renderCredentialTable() {
