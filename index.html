@@ -670,38 +670,58 @@
     </section>
 
     <section id="masterTab" class="tab">
-      <div class="card" id="masterAccessAssignmentCard">
-        <h2>System Access Assignment</h2>
+      <div class="card hidden" id="masterTopSeniorAssignmentCard">
+        <h2>Top Senior Assignment</h2>
+        <p class="subtitle">Only the actual Master Account can appoint or change the Top Senior.</p>
         <div class="form-grid">
           <div>
-            <label>Select Student</label>
-            <select id="accessAssignmentStudent" onchange="loadSelectedStudentAccess()">
-              <option value="">Select student</option>
+            <label>Select Top Senior</label>
+            <select id="topSeniorAssignmentStudent">
+              <option value="">Select student / manager</option>
             </select>
           </div>
           <div>
-            <label>System Access</label>
-            <div style="display:flex;gap:22px;align-items:center;min-height:52px;flex-wrap:wrap;padding:8px 4px;">
-              <label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:700;">
-                <input type="checkbox" id="assignFundManagerAccess" style="width:auto;"> Fund Manager
-              </label>
-              <label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:700;">
-                <input type="checkbox" id="assignDataManagerAccess" style="width:auto;"> Data Manager
-              </label>
-              <label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:700;">
-                <input type="checkbox" id="assignTopSeniorAccess" style="width:auto;"> Top Senior
-              </label>
-            </div>
+            <label>Current Top Senior</label>
+            <div class="notice" id="currentTopSeniorAssignment">No Top Senior assigned.</div>
           </div>
         </div>
         <div class="btn-row">
-          <button onclick="saveStudentManagerAccess()">Save Access</button>
-          <button class="danger" onclick="removeStudentManagerAccess()">Remove Access</button>
+          <button onclick="assignTopSeniorAccess()">Assign / Change Top Senior</button>
+          <button class="danger" onclick="removeTopSeniorAccess()">Remove Top Senior</button>
+        </div>
+      </div>
+
+      <div class="card hidden" id="topSeniorManagerAssignmentCard">
+        <h2>Management Responsibility Assignment</h2>
+        <p class="subtitle">Top Senior selects the active Fund Manager and Data Manager. Only one active person is assigned to each responsibility.</p>
+        <div class="form-grid">
+          <div>
+            <label>Fund Manager</label>
+            <select id="fundManagerAssignmentStudent">
+              <option value="">Select student / manager</option>
+            </select>
+            <div class="notice" id="currentFundManagerAssignment" style="margin-top:10px;">No Fund Manager assigned.</div>
+            <div class="btn-row">
+              <button onclick="assignOperationalManagerRole('fund_manager')">Assign / Change</button>
+              <button class="danger" onclick="removeOperationalManagerRole('fund_manager')">Remove</button>
+            </div>
+          </div>
+          <div>
+            <label>Data Manager</label>
+            <select id="dataManagerAssignmentStudent">
+              <option value="">Select student / manager</option>
+            </select>
+            <div class="notice" id="currentDataManagerAssignment" style="margin-top:10px;">No Data Manager assigned.</div>
+            <div class="btn-row">
+              <button onclick="assignOperationalManagerRole('data_manager')">Assign / Change</button>
+              <button class="danger" onclick="removeOperationalManagerRole('data_manager')">Remove</button>
+            </div>
+          </div>
         </div>
         <div style="margin-top:18px;overflow-x:auto;">
           <table>
-            <thead><tr><th>ID</th><th>Name</th><th>Login Email</th><th>Fund Manager</th><th>Data Manager</th><th>Top Senior</th><th>Action</th></tr></thead>
-            <tbody id="managerAccessAssignmentTable"></tbody>
+            <thead><tr><th>Responsibility</th><th>ID</th><th>Name</th><th>Login Email</th><th>Status</th></tr></thead>
+            <tbody id="operationalManagerAssignmentTable"></tbody>
           </table>
         </div>
       </div>
@@ -879,4 +899,3 @@
   <script src="js/app.js"></script>
 </body>
 </html>
-
