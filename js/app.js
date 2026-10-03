@@ -3355,8 +3355,9 @@ document.addEventListener("DOMContentLoaded", init);
     async function loadMasterData() {
       const topSeniorCard = document.getElementById("masterTopSeniorAssignmentCard");
       const managerAssignmentCard = document.getElementById("topSeniorManagerAssignmentCard");
-      if (topSeniorCard) topSeniorCard.classList.toggle("hidden", !isActualMaster());
-      if (managerAssignmentCard) managerAssignmentCard.classList.toggle("hidden", !isTopSeniorAccount());
+      // Master Account and Top Senior share the same management power.
+      if (topSeniorCard) topSeniorCard.classList.toggle("hidden", !isMasterPower());
+      if (managerAssignmentCard) managerAssignmentCard.classList.toggle("hidden", !isMasterPower());
 
       const profileResult = await db.from("profiles").select("*").order("full_name", { ascending: true });
       if (profileResult.error) { showMessage(profileResult.error.message, "error"); return; }
@@ -3467,8 +3468,8 @@ document.addEventListener("DOMContentLoaded", init);
     }
 
     async function assignTopSeniorAccess() {
-      if (!isActualMaster()) {
-        showMessage("Only the actual Master Account can appoint the Top Senior.", "error");
+      if (!isMasterPower()) {
+        showMessage("Only Master Account / Top Senior can appoint or change the Top Senior.", "error");
         return;
       }
       const studentId = document.getElementById("topSeniorAssignmentStudent")?.value || "";
@@ -3483,14 +3484,18 @@ document.addEventListener("DOMContentLoaded", init);
         showMessage("Top Senior assignment failed: " + result.error.message, "error");
         return;
       }
-      await loadManagerAccessAssignments();
-      renderManagementAccessPanels();
-      showMessage("Top Senior assigned successfully.", "success");
+      // A current Top Senior may appoint the next Top Senior. The database
+      // replaces the old Top Senior assignment immediately, so refresh this
+      // user's additional roles before rebuilding the interface.
+      await loadMyAdditionalRoles();
+      renderLoggedIn();
+      await loadRoleData();
+      showMessage("Top Senior assigned successfully. The previous Top Senior authority has been transferred.", "success");
     }
 
     async function removeTopSeniorAccess() {
-      if (!isActualMaster()) {
-        showMessage("Only the actual Master Account can remove Top Senior access.", "error");
+      if (!isMasterPower()) {
+        showMessage("Only Master Account / Top Senior can remove Top Senior access.", "error");
         return;
       }
       if (!getActiveManagementAssignment("top_senior")) {
@@ -3504,14 +3509,15 @@ document.addEventListener("DOMContentLoaded", init);
         showMessage("Top Senior removal failed: " + result.error.message, "error");
         return;
       }
-      await loadManagerAccessAssignments();
-      renderManagementAccessPanels();
+      await loadMyAdditionalRoles();
+      renderLoggedIn();
+      await loadRoleData();
       showMessage("Top Senior access removed.", "success");
     }
 
     async function assignOperationalManagerRole(accessRole) {
-      if (!isTopSeniorAccount()) {
-        showMessage("Only the selected Top Senior can assign Fund Manager or Data Manager responsibility.", "error");
+      if (!isMasterPower()) {
+        showMessage("Only Master Account / Top Senior can assign Fund Manager or Data Manager responsibility.", "error");
         return;
       }
       if (!["fund_manager", "data_manager"].includes(accessRole)) {
@@ -3543,8 +3549,8 @@ document.addEventListener("DOMContentLoaded", init);
     }
 
     async function removeOperationalManagerRole(accessRole) {
-      if (!isTopSeniorAccount()) {
-        showMessage("Only the selected Top Senior can remove Fund Manager or Data Manager responsibility.", "error");
+      if (!isMasterPower()) {
+        showMessage("Only Master Account / Top Senior can remove Fund Manager or Data Manager responsibility.", "error");
         return;
       }
       if (!["fund_manager", "data_manager"].includes(accessRole)) {
