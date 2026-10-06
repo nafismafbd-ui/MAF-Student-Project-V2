@@ -1,3 +1,6 @@
+let conveyanceBills = [];
+let conveyanceBillItems = [];
+
 document.addEventListener("DOMContentLoaded", init);
 
     async function init() {
@@ -90,6 +93,8 @@ document.addEventListener("DOMContentLoaded", init);
       currentProfile = null;
       currentAdditionalRoles = [];
       managerAccessAssignments = [];
+      conveyanceBills = [];
+      conveyanceBillItems = [];
       renderLoggedOut();
       showMessage("Logged out successfully.", "success");
     }
@@ -151,6 +156,12 @@ document.addEventListener("DOMContentLoaded", init);
       if (role === "fund_manager") return "Fund Manager";
       if (role === "data_manager") return "Data Manager";
       if (role === "top_senior") return "Top Senior";
+      if (role === "review_manager") return "Review Manager";
+      if (role === "executive") return "Executive";
+      if (role === "master") return "Master";
+      if (role === "partner") return "Partner";
+      if (role === "manager") return "Manager";
+      if (role === "student") return "Student";
       return role;
     }
 
@@ -168,7 +179,7 @@ document.addEventListener("DOMContentLoaded", init);
       const extraText = currentAdditionalRoles.length
         ? " + " + currentAdditionalRoles.map(accessRoleLabel).join(" + ")
         : "";
-      document.getElementById("loginStatus").textContent = roleText + extraText + " | " + currentUser.email;
+      document.getElementById("loginStatus").textContent = accessRoleLabel(roleText) + extraText + " | " + currentUser.email;
       document.getElementById("loginForm").classList.add("hidden");
       document.getElementById("logoutBtn").classList.remove("hidden");
       hideRoleTabs();
@@ -182,10 +193,14 @@ document.addEventListener("DOMContentLoaded", init);
       }
       if (hasAccessRole("fund_manager")) document.getElementById("fundTabBtn").classList.remove("hidden");
       if (hasAccessRole("data_manager")) document.getElementById("dataTabBtn").classList.remove("hidden");
+      if (roleText === "review_manager") document.getElementById("reviewManagerTabBtn").classList.remove("hidden");
+      if (roleText === "executive") document.getElementById("executiveTabBtn").classList.remove("hidden");
       if (roleText === "partner") document.getElementById("partnerTabBtn").classList.remove("hidden");
       if (isMasterPower()) document.getElementById("masterTabBtn").classList.remove("hidden");
 
       if (isMasterPower()) openTabById("masterTab");
+      else if (roleText === "review_manager") openTabById("reviewManagerTab");
+      else if (roleText === "executive") openTabById("executiveTab");
       else if (roleText === "partner") openTabById("partnerTab");
       else if (currentAdditionalRoles.includes("fund_manager")) openTabById("fundTab");
       else if (currentAdditionalRoles.includes("data_manager")) openTabById("dataTab");
@@ -196,7 +211,10 @@ document.addEventListener("DOMContentLoaded", init);
     }
 
     function hideRoleTabs() {
-      ["studentTabBtn", "fundTabBtn", "dataTabBtn", "masterTabBtn", "managerLeaveTabBtn", "partnerTabBtn"].forEach(id => document.getElementById(id).classList.add("hidden"));
+      ["studentTabBtn", "fundTabBtn", "dataTabBtn", "masterTabBtn", "managerLeaveTabBtn", "reviewManagerTabBtn", "executiveTabBtn", "partnerTabBtn"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add("hidden");
+      });
     }
 
     async function loadPublicStudents() {
@@ -421,9 +439,14 @@ document.addEventListener("DOMContentLoaded", init);
         await loadStudentDashboard();
         await configureManagerLeaveAccess();
       }
-      if (role === "manager") await loadManagerLeaveData();
+      if (role === "manager" || isCurrentUserManager()) {
+        await loadManagerLeaveData();
+        await loadManagerConveyanceData();
+      }
       if (hasAccessRole("fund_manager")) await loadFundData();
       if (hasAccessRole("data_manager")) await loadStudentDataManager();
+      if (role === "review_manager") await loadReviewManagerConveyanceData();
+      if (role === "executive") await loadExecutiveConveyanceData();
       if (role === "partner") await loadPartnerData();
       if (isMasterPower()) await loadMasterData();
     }
@@ -746,6 +769,13 @@ document.addEventListener("DOMContentLoaded", init);
         ? await buildStudentLeaveApplicationBox(studentId)
         : "";
 
+      const studentConveyanceBox = currentProfile
+        && currentProfile.role === "student"
+        && currentProfile.student_id === studentId
+        && pub.status === "Active"
+        ? await buildStudentConveyanceBox(studentId)
+        : "";
+
       const articleConversionRows = myArticleConversionRequests.length
         ? myArticleConversionRequests.map(r => `
             <tr>
@@ -951,11 +981,13 @@ document.addEventListener("DOMContentLoaded", init);
       const canSeeCaUpdate = Boolean(studentCaEditBox);
       const canSeeLeave = Boolean(studentLeaveBox);
       const canSeeArticleConversion = Boolean(articleConversionBox);
+      const canSeeConveyance = Boolean(studentConveyanceBox);
 
       const profileSectionHeadItems = [
         isFundMember ? `<button class="student-profile-section-head" data-student-profile-head="fund" onclick="openStudentProfileDetail('fund', this)"><strong>Fund</strong><span>⌄</span></button>` : "",
         canSeeCaUpdate ? `<button class="student-profile-section-head" data-student-profile-head="ca" onclick="openStudentProfileDetail('ca', this)"><strong>CA Results Update</strong><span>⌄</span></button>` : "",
         canSeeArticleConversion ? `<button class="student-profile-section-head" data-student-profile-head="article" onclick="openStudentProfileDetail('article', this)"><strong>Article Conversion</strong><span>⌄</span></button>` : "",
+        canSeeConveyance ? `<button class="student-profile-section-head" data-student-profile-head="conveyance" onclick="openStudentProfileDetail('conveyance', this)"><strong>Conveyance Bill</strong><span>⌄</span></button>` : "",
         canSeeLeave ? `<button class="student-profile-section-head" data-student-profile-head="leave" onclick="openStudentProfileDetail('leave', this)"><strong>Leave Application</strong><span>⌄</span></button>` : ""
       ].filter(Boolean);
       const profileSectionHeads = profileSectionHeadItems.join("");
@@ -993,6 +1025,7 @@ document.addEventListener("DOMContentLoaded", init);
             ${isFundMember ? `<div id="studentProfileFundPanel" class="student-profile-detail-panel hidden">${fundDashboardHtml}</div>` : ""}
             ${canSeeCaUpdate ? `<div id="studentProfileCaPanel" class="student-profile-detail-panel hidden">${studentCaEditBox}</div>` : ""}
             ${canSeeArticleConversion ? `<div id="studentProfileArticlePanel" class="student-profile-detail-panel hidden">${articleConversionBox}</div>` : ""}
+            ${canSeeConveyance ? `<div id="studentProfileConveyancePanel" class="student-profile-detail-panel hidden">${studentConveyanceBox}</div>` : ""}
             ${canSeeLeave ? `<div id="studentProfileLeavePanel" class="student-profile-detail-panel hidden">${studentLeaveBox}</div>` : ""}
           </div>
         </div>
@@ -1006,6 +1039,7 @@ document.addEventListener("DOMContentLoaded", init);
         fund: "studentProfileFundPanel",
         ca: "studentProfileCaPanel",
         article: "studentProfileArticlePanel",
+        conveyance: "studentProfileConveyancePanel",
         leave: "studentProfileLeavePanel"
       };
 
@@ -3862,3 +3896,661 @@ document.addEventListener("DOMContentLoaded", init);
 
       showMessage("Profile deleted successfully.", "success");
     }
+
+// ============================================================
+// Conveyance Bill Workflow
+// Student -> Manager -> Review Manager -> Executive (View/Print)
+// ============================================================
+
+function conveyanceMonthLabel(value) {
+  if (!value) return "";
+  const parts = String(value).slice(0, 10).split("-");
+  if (parts.length < 2) return String(value);
+  const d = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+}
+
+function conveyanceDateOnly(value) {
+  return value ? String(value).slice(0, 10) : "";
+}
+
+function conveyanceStatusBadge(status) {
+  const cls = String(status || "").toLowerCase().replaceAll(" ", "-");
+  return `<span class="leave-status ${escapeHtml(cls)}">${escapeHtml(status || "")}</span>`;
+}
+
+function conveyanceRowHtml(rowNo, data = {}) {
+  const direction = safe(data.trip_direction);
+  return `
+    <tr class="conveyance-entry-row">
+      <td class="conveyance-row-number">${rowNo}</td>
+      <td><input type="date" data-field="travel_date" value="${escapeHtml(conveyanceDateOnly(data.travel_date))}"></td>
+      <td><input data-field="client_assignment" value="${escapeHtml(data.client_assignment || "")}" placeholder="Client / Assignment"></td>
+      <td><input data-field="purpose" value="${escapeHtml(data.purpose || "")}" placeholder="Official purpose"></td>
+      <td>
+        <select data-field="trip_direction">
+          <option value="">Up / Down</option>
+          <option value="Up" ${direction === "Up" ? "selected" : ""}>Up</option>
+          <option value="Down" ${direction === "Down" ? "selected" : ""}>Down</option>
+        </select>
+      </td>
+      <td><input data-field="from_location" value="${escapeHtml(data.from_location || "")}" placeholder="From"></td>
+      <td><input data-field="to_location" value="${escapeHtml(data.to_location || "")}" placeholder="To"></td>
+      <td><input data-field="transport" value="${escapeHtml(data.transport || "")}" placeholder="Bus / CNG / Rickshaw"></td>
+      <td><input type="number" min="0" step="0.01" data-field="amount" value="${Number(data.amount || 0) ? escapeHtml(Number(data.amount).toFixed(2)) : ""}" placeholder="0.00" oninput="updateConveyanceTotalPreview()"></td>
+      <td><input data-field="remarks" value="${escapeHtml(data.remarks || "")}" placeholder="Optional"></td>
+      <td><button type="button" class="danger" onclick="removeConveyanceRow(this)">Remove</button></td>
+    </tr>`;
+}
+
+async function buildStudentConveyanceBox(studentId) {
+  const result = await db
+    .from("conveyance_bills")
+    .select("*")
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: false });
+
+  const rows = result.error ? [] : (result.data || []);
+  const defaultMonth = new Date().toISOString().slice(0, 7);
+
+  const historyRows = rows.length ? rows.map(b => {
+    const editable = ["Draft", "Manager Returned", "Review Manager Returned"].includes(b.status);
+    const action = editable
+      ? `<button class="warning" onclick="editConveyanceBill('${escapeAttribute(b.id)}')">Edit / Resubmit</button> <button class="light" onclick="showConveyanceBillDetails('${escapeAttribute(b.id)}')">View</button>`
+      : `<button class="light" onclick="showConveyanceBillDetails('${escapeAttribute(b.id)}')">View</button>`;
+    return `<tr>
+      <td>${escapeHtml(b.bill_no)}</td>
+      <td>${escapeHtml(conveyanceMonthLabel(b.bill_month))}</td>
+      <td>${money(b.total_amount)}</td>
+      <td>${conveyanceStatusBadge(b.status)}</td>
+      <td>${escapeHtml(b.manager_note || "")}</td>
+      <td>${escapeHtml(b.review_manager_note || "")}</td>
+      <td>${action}</td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="7">No conveyance bill found.</td></tr>`;
+
+  return `
+    <div class="card">
+      <h2>Conveyance Bill</h2>
+      <p class="subtitle">Submit official conveyance expenses. The bill will go to Manager review, then Review Manager, then Executive for final view / print.</p>
+      <input type="hidden" id="conveyanceEditBillId" value="">
+      <div class="form-grid">
+        <div>
+          <label>Bill Month</label>
+          <input type="month" id="conveyanceBillMonth" value="${escapeHtml(defaultMonth)}">
+        </div>
+        <div>
+          <label>Total Claimed</label>
+          <input id="conveyanceTotalPreview" value="0.00" readonly>
+        </div>
+        <div style="grid-column:1/-1;">
+          <label>Student Note</label>
+          <input id="conveyanceStudentNote" placeholder="Optional note for the reviewers">
+        </div>
+      </div>
+
+      <div style="overflow-x:auto;margin-top:16px;">
+        <table style="min-width:1380px;">
+          <thead>
+            <tr>
+              <th>SL</th><th>Date</th><th>Client / Assignment</th><th>Purpose</th><th>Up / Down</th><th>From</th><th>To</th><th>Transport</th><th>Amount</th><th>Remarks</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="conveyanceEntryBody">
+            ${conveyanceRowHtml(1)}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="btn-row" style="margin-top:14px;">
+        <button type="button" class="light" onclick="addConveyanceRow()">+ Add Row</button>
+        <button type="button" class="dark" onclick="saveConveyanceBill(false)">Save Draft</button>
+        <button type="button" class="success" onclick="saveConveyanceBill(true)">Submit Bill</button>
+        <button type="button" class="light" onclick="resetConveyanceForm()">New / Clear</button>
+      </div>
+
+      <h3 style="margin-top:24px;">My Conveyance Bills</h3>
+      <div style="overflow-x:auto;">
+        <table style="min-width:980px;">
+          <thead><tr><th>Bill No.</th><th>Month</th><th>Amount</th><th>Status</th><th>Manager Recommendation</th><th>Review Manager Recommendation</th><th>Action</th></tr></thead>
+          <tbody>${historyRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function addConveyanceRow(data = {}) {
+  const body = document.getElementById("conveyanceEntryBody");
+  if (!body) return;
+  const count = body.querySelectorAll(".conveyance-entry-row").length + 1;
+  body.insertAdjacentHTML("beforeend", conveyanceRowHtml(count, data));
+  updateConveyanceRowNumbers();
+  updateConveyanceTotalPreview();
+}
+
+function removeConveyanceRow(button) {
+  const body = document.getElementById("conveyanceEntryBody");
+  if (!body) return;
+  const rows = body.querySelectorAll(".conveyance-entry-row");
+  if (rows.length <= 1) {
+    rows[0]?.querySelectorAll("input,select").forEach(el => {
+      if (el.dataset.field) el.value = "";
+    });
+  } else {
+    button.closest("tr")?.remove();
+  }
+  updateConveyanceRowNumbers();
+  updateConveyanceTotalPreview();
+}
+
+function updateConveyanceRowNumbers() {
+  document.querySelectorAll("#conveyanceEntryBody .conveyance-entry-row").forEach((row, index) => {
+    const cell = row.querySelector(".conveyance-row-number");
+    if (cell) cell.textContent = String(index + 1);
+  });
+}
+
+function collectConveyanceItems() {
+  const rows = Array.from(document.querySelectorAll("#conveyanceEntryBody .conveyance-entry-row"));
+  return rows.map(row => {
+    const get = name => row.querySelector(`[data-field="${name}"]`)?.value?.trim?.() || "";
+    return {
+      travel_date: get("travel_date"),
+      client_assignment: get("client_assignment"),
+      purpose: get("purpose"),
+      trip_direction: get("trip_direction"),
+      from_location: get("from_location"),
+      to_location: get("to_location"),
+      transport: get("transport"),
+      amount: get("amount"),
+      remarks: get("remarks")
+    };
+  }).filter(item => Object.values(item).some(v => String(v || "").trim() !== ""));
+}
+
+function updateConveyanceTotalPreview() {
+  const el = document.getElementById("conveyanceTotalPreview");
+  if (!el) return;
+  const total = collectConveyanceItems().reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  el.value = money(total);
+}
+
+function resetConveyanceForm() {
+  const idEl = document.getElementById("conveyanceEditBillId");
+  const monthEl = document.getElementById("conveyanceBillMonth");
+  const noteEl = document.getElementById("conveyanceStudentNote");
+  const body = document.getElementById("conveyanceEntryBody");
+  if (idEl) idEl.value = "";
+  if (monthEl) monthEl.value = new Date().toISOString().slice(0, 7);
+  if (noteEl) noteEl.value = "";
+  if (body) body.innerHTML = conveyanceRowHtml(1);
+  updateConveyanceTotalPreview();
+}
+
+async function saveConveyanceBill(submitNow) {
+  if (!currentProfile || currentProfile.role !== "student" || !currentProfile.student_id) {
+    showMessage("Only a logged-in student can save or submit a conveyance bill.", "error");
+    return;
+  }
+
+  const billId = document.getElementById("conveyanceEditBillId")?.value || null;
+  const month = document.getElementById("conveyanceBillMonth")?.value || "";
+  const note = document.getElementById("conveyanceStudentNote")?.value.trim() || "";
+  const items = collectConveyanceItems();
+
+  if (!month) {
+    showMessage("Please select the bill month.", "error");
+    return;
+  }
+  if (submitNow && items.length === 0) {
+    showMessage("Please add at least one conveyance row before submission.", "error");
+    return;
+  }
+
+  const result = await db.rpc("save_conveyance_bill", {
+    p_bill_id: billId,
+    p_bill_month: `${month}-01`,
+    p_student_note: note || null,
+    p_items: items,
+    p_submit: Boolean(submitNow)
+  });
+
+  if (result.error) {
+    showMessage("Conveyance bill save failed: " + result.error.message, "error");
+    return;
+  }
+
+  await loadStudentDashboard();
+  showMessage(
+    submitNow
+      ? `Conveyance bill ${result.data || ""} submitted to Manager for review.`
+      : `Conveyance bill ${result.data || ""} saved as draft.`,
+    "success"
+  );
+}
+
+async function editConveyanceBill(billId) {
+  const billResult = await db.from("conveyance_bills").select("*").eq("id", billId).maybeSingle();
+  const itemResult = await db.from("conveyance_bill_items").select("*").eq("bill_id", billId).order("line_no", { ascending: true });
+  if (billResult.error || !billResult.data) {
+    showMessage("Conveyance bill could not be loaded.", "error");
+    return;
+  }
+
+  const bill = billResult.data;
+  if (!["Draft", "Manager Returned", "Review Manager Returned"].includes(bill.status)) {
+    showMessage("This bill is no longer editable.", "error");
+    return;
+  }
+
+  const idEl = document.getElementById("conveyanceEditBillId");
+  const monthEl = document.getElementById("conveyanceBillMonth");
+  const noteEl = document.getElementById("conveyanceStudentNote");
+  const body = document.getElementById("conveyanceEntryBody");
+  if (!idEl || !monthEl || !body) return;
+
+  idEl.value = bill.id;
+  monthEl.value = String(bill.bill_month || "").slice(0, 7);
+  if (noteEl) noteEl.value = bill.student_note || "";
+  const items = itemResult.error ? [] : (itemResult.data || []);
+  body.innerHTML = items.length ? items.map((item, i) => conveyanceRowHtml(i + 1, item)).join("") : conveyanceRowHtml(1);
+  updateConveyanceTotalPreview();
+  body.closest("table")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  showMessage(`Loaded ${bill.bill_no} for correction / resubmission.`, "success");
+}
+
+async function getConveyanceBillDetails(billId) {
+  const billResult = await db.from("conveyance_bills").select("*").eq("id", billId).maybeSingle();
+  if (billResult.error || !billResult.data) throw new Error(billResult.error?.message || "Bill not found");
+  const itemResult = await db.from("conveyance_bill_items").select("*").eq("bill_id", billId).order("line_no", { ascending: true });
+  if (itemResult.error) throw new Error(itemResult.error.message);
+  return { bill: billResult.data, items: itemResult.data || [] };
+}
+
+function conveyanceItemsTableHtml(items) {
+  return `
+    <div style="overflow-x:auto;">
+      <table style="min-width:1120px;">
+        <thead><tr><th>SL</th><th>Date</th><th>Client / Assignment</th><th>Purpose</th><th>Up / Down</th><th>From</th><th>To</th><th>Transport</th><th style="text-align:right;">Amount</th><th>Remarks</th></tr></thead>
+        <tbody>${items.length ? items.map((i, idx) => `<tr>
+          <td>${idx + 1}</td>
+          <td>${escapeHtml(conveyanceDateOnly(i.travel_date))}</td>
+          <td>${escapeHtml(i.client_assignment)}</td>
+          <td>${escapeHtml(i.purpose)}</td>
+          <td><strong>${escapeHtml(i.trip_direction)}</strong></td>
+          <td>${escapeHtml(i.from_location)}</td>
+          <td>${escapeHtml(i.to_location)}</td>
+          <td>${escapeHtml(i.transport)}</td>
+          <td style="text-align:right;">${money(i.amount)}</td>
+          <td>${escapeHtml(i.remarks)}</td>
+        </tr>`).join("") : `<tr><td colspan="10">No conveyance items found.</td></tr>`}</tbody>
+      </table>
+    </div>`;
+}
+
+async function showConveyanceBillDetails(billId) {
+  try {
+    const { bill, items } = await getConveyanceBillDetails(billId);
+    const modal = document.getElementById("conveyanceDetailModal");
+    const title = document.getElementById("conveyanceDetailModalTitle");
+    const body = document.getElementById("conveyanceDetailBody");
+    if (!modal || !body) return;
+
+    if (title) title.textContent = `Conveyance Bill - ${bill.bill_no}`;
+
+    let actionHtml = "";
+    if (isCurrentUserManager() && String(bill.manager_user_id) === String(currentUser?.id) && bill.status === "Submitted") {
+      actionHtml = `<div class="btn-row" style="margin-top:18px;">
+        <button class="success" onclick="managerReviewConveyance('${escapeAttribute(bill.id)}','approve')">Approve</button>
+        <button class="warning" onclick="managerReviewConveyance('${escapeAttribute(bill.id)}','return')">Return for Correction</button>
+        <button class="danger" onclick="managerReviewConveyance('${escapeAttribute(bill.id)}','reject')">Reject</button>
+      </div>`;
+    } else if (currentProfile?.role === "review_manager" && bill.status === "Manager Approved") {
+      actionHtml = `<div class="btn-row" style="margin-top:18px;">
+        <button class="success" onclick="reviewManagerReviewConveyance('${escapeAttribute(bill.id)}','approve')">Approve</button>
+        <button class="warning" onclick="reviewManagerReviewConveyance('${escapeAttribute(bill.id)}','return')">Return for Correction</button>
+        <button class="danger" onclick="reviewManagerReviewConveyance('${escapeAttribute(bill.id)}','reject')">Reject</button>
+      </div>`;
+    }
+
+    const printButton = bill.status === "Review Manager Approved"
+      ? `<button class="dark" onclick="printConveyanceBill('${escapeAttribute(bill.id)}')">Print View</button>`
+      : "";
+
+    body.innerHTML = `
+      <div class="card" style="margin-top:0;">
+        <div class="form-grid">
+          <div class="info"><span>Bill No.</span><strong>${escapeHtml(bill.bill_no)}</strong></div>
+          <div class="info"><span>Status</span><strong>${escapeHtml(bill.status)}</strong></div>
+          <div class="info"><span>Student</span><strong>${escapeHtml(bill.student_id)} - ${escapeHtml(bill.student_name)}</strong></div>
+          <div class="info"><span>Designation</span><strong>${escapeHtml(bill.designation)}</strong></div>
+          <div class="info"><span>Branch</span><strong>${escapeHtml(bill.branch)}</strong></div>
+          <div class="info"><span>Bill Month</span><strong>${escapeHtml(conveyanceMonthLabel(bill.bill_month))}</strong></div>
+          <div class="info"><span>Submitted</span><strong>${escapeHtml(formatDate(bill.submitted_at || bill.created_at))}</strong></div>
+          <div class="info"><span>Total Claimed</span><strong>Tk. ${money(bill.total_amount)}</strong></div>
+        </div>
+        <div class="info" style="margin-top:12px;"><span>Student Note</span><strong>${escapeHtml(bill.student_note || "")}</strong></div>
+      </div>
+
+      <div class="card">
+        <h3>Conveyance Details</h3>
+        ${conveyanceItemsTableHtml(items)}
+      </div>
+
+      <div class="card">
+        <h3>Manager Recommendation</h3>
+        <div class="info"><span>Manager</span><strong>${escapeHtml(bill.manager_name || "Waiting for Manager")}</strong></div>
+        <div class="info"><span>Recommendation</span><strong>${escapeHtml(bill.manager_note || "")}</strong></div>
+        <div class="info"><span>Action Date</span><strong>${escapeHtml(formatDate(bill.manager_decided_at))}</strong></div>
+      </div>
+
+      <div class="card">
+        <h3>Review Manager Recommendation</h3>
+        <div class="info"><span>Review Manager</span><strong>${escapeHtml(bill.review_manager_name || "Waiting for Review Manager")}</strong></div>
+        <div class="info"><span>Recommendation</span><strong>${escapeHtml(bill.review_manager_note || "")}</strong></div>
+        <div class="info"><span>Action Date</span><strong>${escapeHtml(formatDate(bill.review_manager_decided_at))}</strong></div>
+      </div>
+
+      <div class="btn-row">${printButton}<button class="light" onclick="closeConveyanceDetailModal()">Close</button></div>
+      ${actionHtml}`;
+
+    modal.classList.remove("hidden");
+    modal.classList.add("show");
+    document.body.style.overflow = "hidden";
+  } catch (err) {
+    showMessage("Could not load conveyance bill: " + err.message, "error");
+  }
+}
+
+function closeConveyanceDetailModal() {
+  const modal = document.getElementById("conveyanceDetailModal");
+  if (modal) {
+    modal.classList.remove("show");
+    modal.classList.add("hidden");
+  }
+  document.body.style.overflow = "";
+}
+
+async function loadManagerConveyanceData() {
+  if (!currentUser || !currentProfile || !isCurrentUserManager()) return;
+  const result = await db
+    .from("conveyance_bills")
+    .select("*")
+    .eq("manager_user_id", currentUser.id)
+    .order("created_at", { ascending: false });
+  conveyanceBills = result.error ? [] : (result.data || []);
+  if (result.error) showMessage("Conveyance load failed: " + result.error.message, "error");
+  renderManagerConveyanceTables();
+}
+
+function renderManagerConveyanceTables() {
+  const pendingBody = document.getElementById("managerConveyanceTable");
+  const recentBody = document.getElementById("managerConveyanceRecentTable");
+
+  if (pendingBody) {
+    const pending = conveyanceBills.filter(b => b.status === "Submitted");
+    pendingBody.innerHTML = pending.length ? pending.map(b => `<tr>
+      <td>${escapeHtml(b.bill_no)}</td>
+      <td>${escapeHtml(formatDate(b.submitted_at || b.created_at))}</td>
+      <td>${escapeHtml(b.student_id)}</td>
+      <td>${escapeHtml(b.student_name)}</td>
+      <td>${escapeHtml(conveyanceMonthLabel(b.bill_month))}</td>
+      <td>${money(b.total_amount)}</td>
+      <td>${conveyanceStatusBadge(b.status)}</td>
+      <td><button class="warning" onclick="showConveyanceBillDetails('${escapeAttribute(b.id)}')">Review</button></td>
+    </tr>`).join("") : `<tr><td colspan="8">No conveyance bill waiting for Manager review.</td></tr>`;
+  }
+
+  if (recentBody) {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const recent = conveyanceBills
+      .filter(b => b.manager_decided_at && new Date(b.manager_decided_at).getTime() >= sevenDaysAgo)
+      .sort((a, b) => new Date(b.manager_decided_at || 0) - new Date(a.manager_decided_at || 0));
+    recentBody.innerHTML = recent.length ? recent.map(b => `<tr>
+      <td>${escapeHtml(formatDate(b.manager_decided_at))}</td>
+      <td>${escapeHtml(b.bill_no)}</td>
+      <td>${escapeHtml(b.student_id)}</td>
+      <td>${escapeHtml(b.student_name)}</td>
+      <td>${money(b.total_amount)}</td>
+      <td>${escapeHtml(b.manager_note || "")}</td>
+      <td>${conveyanceStatusBadge(b.status)}</td>
+      <td><button class="light" onclick="showConveyanceBillDetails('${escapeAttribute(b.id)}')">View</button></td>
+    </tr>`).join("") : `<tr><td colspan="8">No Manager conveyance action in the last 7 days.</td></tr>`;
+  }
+}
+
+async function managerReviewConveyance(billId, action) {
+  if (!currentProfile || !isCurrentUserManager()) {
+    showMessage("Only the assigned Manager can review this conveyance bill.", "error");
+    return;
+  }
+  const promptText = action === "approve"
+    ? "Manager recommendation:"
+    : action === "return"
+      ? "Reason / correction required:"
+      : "Reason for rejection:";
+  const defaultText = action === "approve" ? "Checked and recommended for approval." : "";
+  const note = prompt(promptText, defaultText);
+  if (note === null) return;
+  if (!note.trim()) {
+    showMessage("Manager recommendation / reason is required.", "error");
+    return;
+  }
+
+  const result = await db.rpc("manager_decide_conveyance", {
+    p_bill_id: billId,
+    p_action: action,
+    p_note: note.trim()
+  });
+  if (result.error) {
+    showMessage("Manager conveyance review failed: " + result.error.message, "error");
+    return;
+  }
+
+  closeConveyanceDetailModal();
+  await loadManagerConveyanceData();
+  showMessage(
+    action === "approve" ? "Conveyance bill approved and sent to Review Manager." :
+    action === "return" ? "Conveyance bill returned to student for correction." :
+    "Conveyance bill rejected by Manager.",
+    "success"
+  );
+}
+
+async function loadReviewManagerConveyanceData() {
+  if (!currentProfile || currentProfile.role !== "review_manager") return;
+  const result = await db.from("conveyance_bills").select("*").order("created_at", { ascending: false });
+  conveyanceBills = result.error ? [] : (result.data || []);
+  if (result.error) showMessage("Review Manager conveyance load failed: " + result.error.message, "error");
+  renderReviewManagerConveyanceTables();
+}
+
+function renderReviewManagerConveyanceTables() {
+  const pendingBody = document.getElementById("reviewManagerConveyanceTable");
+  const recentBody = document.getElementById("reviewManagerConveyanceRecentTable");
+  if (pendingBody) {
+    const pending = conveyanceBills.filter(b => b.status === "Manager Approved");
+    pendingBody.innerHTML = pending.length ? pending.map(b => `<tr>
+      <td>${escapeHtml(b.bill_no)}</td>
+      <td>${escapeHtml(formatDate(b.submitted_at || b.created_at))}</td>
+      <td>${escapeHtml(b.student_id)}</td>
+      <td>${escapeHtml(b.student_name)}</td>
+      <td>${escapeHtml(conveyanceMonthLabel(b.bill_month))}</td>
+      <td>${money(b.total_amount)}</td>
+      <td>${escapeHtml(b.manager_note || "")}</td>
+      <td>${conveyanceStatusBadge(b.status)}</td>
+      <td><button class="warning" onclick="showConveyanceBillDetails('${escapeAttribute(b.id)}')">Review</button></td>
+    </tr>`).join("") : `<tr><td colspan="9">No Manager-approved conveyance bill waiting for review.</td></tr>`;
+  }
+
+  if (recentBody) {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const recent = conveyanceBills
+      .filter(b => b.review_manager_decided_at && new Date(b.review_manager_decided_at).getTime() >= sevenDaysAgo)
+      .sort((a, b) => new Date(b.review_manager_decided_at || 0) - new Date(a.review_manager_decided_at || 0));
+    recentBody.innerHTML = recent.length ? recent.map(b => `<tr>
+      <td>${escapeHtml(formatDate(b.review_manager_decided_at))}</td>
+      <td>${escapeHtml(b.bill_no)}</td>
+      <td>${escapeHtml(b.student_id)}</td>
+      <td>${escapeHtml(b.student_name)}</td>
+      <td>${money(b.total_amount)}</td>
+      <td>${escapeHtml(b.review_manager_note || "")}</td>
+      <td>${conveyanceStatusBadge(b.status)}</td>
+      <td><button class="light" onclick="showConveyanceBillDetails('${escapeAttribute(b.id)}')">View</button></td>
+    </tr>`).join("") : `<tr><td colspan="8">No Review Manager action in the last 7 days.</td></tr>`;
+  }
+}
+
+async function reviewManagerReviewConveyance(billId, action) {
+  if (!currentProfile || currentProfile.role !== "review_manager") {
+    showMessage("Only the Review Manager can review this conveyance bill.", "error");
+    return;
+  }
+  const promptText = action === "approve"
+    ? "Review Manager recommendation:"
+    : action === "return"
+      ? "Reason / correction required:"
+      : "Reason for rejection:";
+  const defaultText = action === "approve" ? "Reviewed and recommended for payment." : "";
+  const note = prompt(promptText, defaultText);
+  if (note === null) return;
+  if (!note.trim()) {
+    showMessage("Review Manager recommendation / reason is required.", "error");
+    return;
+  }
+
+  const result = await db.rpc("review_manager_decide_conveyance", {
+    p_bill_id: billId,
+    p_action: action,
+    p_note: note.trim()
+  });
+  if (result.error) {
+    showMessage("Review Manager decision failed: " + result.error.message, "error");
+    return;
+  }
+
+  closeConveyanceDetailModal();
+  await loadReviewManagerConveyanceData();
+  showMessage(
+    action === "approve" ? "Conveyance bill approved. It is now available to Executive for final view / print." :
+    action === "return" ? "Conveyance bill returned to student for correction." :
+    "Conveyance bill rejected by Review Manager.",
+    "success"
+  );
+}
+
+async function loadExecutiveConveyanceData() {
+  if (!currentProfile || currentProfile.role !== "executive") return;
+  const result = await db
+    .from("conveyance_bills")
+    .select("*")
+    .eq("status", "Review Manager Approved")
+    .order("review_manager_decided_at", { ascending: false });
+  conveyanceBills = result.error ? [] : (result.data || []);
+  if (result.error) showMessage("Executive conveyance load failed: " + result.error.message, "error");
+  renderExecutiveConveyanceTable();
+}
+
+function renderExecutiveConveyanceTable() {
+  const tbody = document.getElementById("executiveConveyanceTable");
+  if (!tbody) return;
+  tbody.innerHTML = conveyanceBills.length ? conveyanceBills.map(b => `<tr>
+    <td>${escapeHtml(b.bill_no)}</td>
+    <td>${escapeHtml(formatDate(b.submitted_at || b.created_at))}</td>
+    <td>${escapeHtml(b.student_id)}</td>
+    <td>${escapeHtml(b.student_name)}</td>
+    <td>${escapeHtml(conveyanceMonthLabel(b.bill_month))}</td>
+    <td>${money(b.total_amount)}</td>
+    <td>${escapeHtml(b.manager_name || "")}</td>
+    <td>${escapeHtml(b.review_manager_name || "")}</td>
+    <td><button class="light" onclick="showConveyanceBillDetails('${escapeAttribute(b.id)}')">View</button> <button class="dark" onclick="printConveyanceBill('${escapeAttribute(b.id)}')">Print</button></td>
+  </tr>`).join("") : `<tr><td colspan="9">No final conveyance bill is ready for Executive.</td></tr>`;
+}
+
+async function printConveyanceBill(billId) {
+  let detail;
+  try {
+    detail = await getConveyanceBillDetails(billId);
+  } catch (err) {
+    showMessage("Could not prepare print view: " + err.message, "error");
+    return;
+  }
+
+  const { bill, items } = detail;
+  if (bill.status !== "Review Manager Approved") {
+    showMessage("Only Review Manager approved bills can be printed as final conveyance bills.", "error");
+    return;
+  }
+
+  const itemRows = items.map((i, idx) => `<tr>
+    <td>${idx + 1}</td>
+    <td>${escapeHtml(conveyanceDateOnly(i.travel_date))}</td>
+    <td>${escapeHtml(i.client_assignment)}</td>
+    <td>${escapeHtml(i.purpose)}</td>
+    <td>${escapeHtml(i.trip_direction)}</td>
+    <td>${escapeHtml(i.from_location)}</td>
+    <td>${escapeHtml(i.to_location)}</td>
+    <td>${escapeHtml(i.transport)}</td>
+    <td class="num">${money(i.amount)}</td>
+    <td>${escapeHtml(i.remarks)}</td>
+  </tr>`).join("");
+
+  const win = window.open("", "_blank");
+  if (!win) {
+    showMessage("Print window was blocked by the browser. Please allow pop-ups for this site.", "error");
+    return;
+  }
+
+  win.document.write(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>${escapeHtml(bill.bill_no)} - Conveyance Bill</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; color:#111; margin:0; font-size:11px; }
+  h1,h2,h3,p { margin:0; }
+  .head { text-align:center; margin-bottom:14px; }
+  .head h1 { font-family: Georgia, serif; font-size:22px; }
+  .head h2 { font-size:15px; margin-top:3px; }
+  .head h3 { font-size:14px; margin-top:12px; letter-spacing:.5px; }
+  .meta { width:100%; border-collapse:collapse; margin-bottom:12px; }
+  .meta td { padding:4px 6px; border:1px solid #aaa; vertical-align:top; }
+  table.items { width:100%; border-collapse:collapse; font-size:9.5px; }
+  table.items th, table.items td { border:1px solid #777; padding:4px; vertical-align:top; }
+  table.items th { background:#eee; }
+  .num { text-align:right; white-space:nowrap; }
+  .total { text-align:right; font-size:13px; font-weight:700; margin:10px 0 16px; }
+  .review { border:1px solid #aaa; padding:9px; margin-top:10px; min-height:70px; }
+  .review h3 { font-size:12px; margin-bottom:6px; }
+  .signature-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:24px; margin-top:42px; }
+  .sig { text-align:center; border-top:1px solid #111; padding-top:5px; }
+  .printbar { margin-bottom:12px; text-align:right; }
+  @media print { .printbar { display:none; } }
+</style></head><body>
+<div class="printbar"><button onclick="window.print()">Print</button></div>
+<div class="head">
+  <h1>M A FAZAL &amp; CO.</h1>
+  <h2>Chartered Accountants</h2>
+  <h3>CONVEYANCE BILL</h3>
+</div>
+<table class="meta">
+  <tr><td><strong>Bill No.</strong><br>${escapeHtml(bill.bill_no)}</td><td><strong>Bill Month</strong><br>${escapeHtml(conveyanceMonthLabel(bill.bill_month))}</td><td><strong>Submitted</strong><br>${escapeHtml(formatDate(bill.submitted_at || bill.created_at))}</td></tr>
+  <tr><td><strong>Student ID</strong><br>${escapeHtml(bill.student_id)}</td><td><strong>Student Name</strong><br>${escapeHtml(bill.student_name)}</td><td><strong>Designation / Branch</strong><br>${escapeHtml(bill.designation || "")} / ${escapeHtml(bill.branch || "")}</td></tr>
+</table>
+<table class="items">
+<thead><tr><th>SL</th><th>Date</th><th>Client / Assignment</th><th>Purpose</th><th>Up/Down</th><th>From</th><th>To</th><th>Transport</th><th>Amount</th><th>Remarks</th></tr></thead>
+<tbody>${itemRows}</tbody>
+</table>
+<div class="total">Total Conveyance Claimed: Tk. ${money(bill.total_amount)}</div>
+<div class="review"><h3>STUDENT DECLARATION / NOTE</h3>${escapeHtml(bill.student_note || "I confirm that the above conveyance expenses were incurred for official purposes.")}</div>
+<div class="review"><h3>MANAGER RECOMMENDATION</h3><strong>${escapeHtml(bill.manager_name || "")}</strong><br>${escapeHtml(bill.manager_note || "")}<br><small>${escapeHtml(formatDate(bill.manager_decided_at))}</small></div>
+<div class="review"><h3>REVIEW MANAGER RECOMMENDATION</h3><strong>${escapeHtml(bill.review_manager_name || "")}</strong><br>${escapeHtml(bill.review_manager_note || "")}<br><small>${escapeHtml(formatDate(bill.review_manager_decided_at))}</small></div>
+<div class="signature-grid">
+  <div class="sig">Submitted By<br>${escapeHtml(bill.student_name)}<br>${escapeHtml(bill.student_id)}</div>
+  <div class="sig">Review Manager</div>
+  <div class="sig">Executive</div>
+</div>
+</body></html>`);
+  win.document.close();
+  win.focus();
+}
