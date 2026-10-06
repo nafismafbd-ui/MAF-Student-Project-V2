@@ -59,7 +59,9 @@
       <button class="tab-btn hidden" id="fundTabBtn" data-tab="fundTab" onclick="openTab('fundTab', this)">Fund</button>
       <button class="tab-btn hidden" id="dataTabBtn" data-tab="dataTab" onclick="openTab('dataTab', this)">Data Manager</button>
       <button class="tab-btn hidden" id="masterTabBtn" data-tab="masterTab" onclick="openTab('masterTab', this)">Master Account</button>
-      <button class="tab-btn hidden" id="managerLeaveTabBtn" data-tab="managerLeaveTab" onclick="openTab('managerLeaveTab', this)">Leave Manager</button>
+      <button class="tab-btn hidden" id="managerLeaveTabBtn" data-tab="managerLeaveTab" onclick="openTab('managerLeaveTab', this)">Manager</button>
+      <button class="tab-btn hidden" id="reviewManagerTabBtn" data-tab="reviewManagerTab" onclick="openTab('reviewManagerTab', this)">Review Manager</button>
+      <button class="tab-btn hidden" id="executiveTabBtn" data-tab="executiveTab" onclick="openTab('executiveTab', this)">Executive</button>
       <button class="tab-btn hidden" id="partnerTabBtn" data-tab="partnerTab" onclick="openTab('partnerTab', this)">Partner</button>
     </div>
 
@@ -791,6 +793,27 @@
 
     <section id="managerLeaveTab" class="tab leave-workflow-tab">
       <div class="card leave-workflow-card leave-pending-card">
+        <h2>Conveyance Bills Waiting for Manager Review</h2>
+        <p class="subtitle">Review student conveyance bills assigned to this Manager. Approve, return for correction, or reject.</p>
+        <div class="leave-table-wrap" style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>Bill No.</th><th>Submitted</th><th>ID</th><th>Name</th><th>Month</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="managerConveyanceTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card leave-workflow-card leave-history-card">
+        <h2>Last 7 Days Conveyance Actions</h2>
+        <div class="leave-table-wrap" style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>Action Date</th><th>Bill No.</th><th>ID</th><th>Name</th><th>Amount</th><th>Manager Note</th><th>Current Status</th><th>View</th></tr></thead>
+            <tbody id="managerConveyanceRecentTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card leave-workflow-card leave-pending-card">
         <h2>Leave Applications</h2>
         <div class="leave-table-wrap">
           <table>
@@ -806,6 +829,43 @@
           <table>
             <thead><tr><th>Action Date</th><th>ID</th><th>Name</th><th>Leave Type</th><th>From</th><th>To</th><th>Days</th><th>Manager Action</th><th>Manager Note</th><th>Current Status</th></tr></thead>
             <tbody id="managerRecentLeaveTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+
+    <section id="reviewManagerTab" class="tab leave-workflow-tab">
+      <div class="card leave-workflow-card leave-pending-card">
+        <h2>Conveyance Bills Waiting for Review Manager</h2>
+        <p class="subtitle">Bills shown here have already been approved by the Manager.</p>
+        <div class="leave-table-wrap" style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>Bill No.</th><th>Submitted</th><th>ID</th><th>Name</th><th>Month</th><th>Amount</th><th>Manager Recommendation</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="reviewManagerConveyanceTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card leave-workflow-card leave-history-card">
+        <h2>Last 7 Days Review Manager Actions</h2>
+        <div class="leave-table-wrap" style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>Action Date</th><th>Bill No.</th><th>ID</th><th>Name</th><th>Amount</th><th>Recommendation</th><th>Status</th><th>View</th></tr></thead>
+            <tbody id="reviewManagerConveyanceRecentTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="executiveTab" class="tab leave-workflow-tab">
+      <div class="card leave-workflow-card leave-pending-card">
+        <h2>Final Conveyance Bills</h2>
+        <p class="subtitle">Only bills approved by both the Manager and Review Manager appear here. Executive can view and print the final bill with both recommendations.</p>
+        <div class="leave-table-wrap" style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>Bill No.</th><th>Submitted</th><th>ID</th><th>Name</th><th>Month</th><th>Amount</th><th>Manager</th><th>Review Manager</th><th>Action</th></tr></thead>
+            <tbody id="executiveConveyanceTable"></tbody>
           </table>
         </div>
       </div>
@@ -888,6 +948,18 @@
       </div>
       <div class="modal-body">
         <div id="masterStudentProfileBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="conveyanceDetailModal" class="modal-overlay hidden" onclick="closeModalOnBackdrop(event, 'conveyanceDetailModal')">
+    <div class="modal-panel" style="max-width:1200px;">
+      <div class="modal-header">
+        <h2 id="conveyanceDetailModalTitle">Conveyance Bill</h2>
+        <button class="modal-close" onclick="closeConveyanceDetailModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="conveyanceDetailBody"></div>
       </div>
     </div>
   </div>
