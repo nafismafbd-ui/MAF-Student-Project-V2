@@ -957,11 +957,11 @@
       const canSeeArticleConversion = Boolean(articleConversionBox);
 
       const profileSectionHeadItems = [
-        isFundMember ? `<button class="student-profile-section-head" data-student-profile-head="fund" onclick="openStudentProfileDetail('fund', this)"><strong>Fund</strong><span>⌄</span></button>` : "",
-        canSeeCaUpdate ? `<button class="student-profile-section-head" data-student-profile-head="ca" onclick="openStudentProfileDetail('ca', this)"><strong>CA Results Update</strong><span>⌄</span></button>` : "",
-        canSeeArticleConversion ? `<button class="student-profile-section-head" data-student-profile-head="article" onclick="openStudentProfileDetail('article', this)"><strong>Article Conversion</strong><span>⌄</span></button>` : "",
-        canSeeLeave ? `<button class="student-profile-section-head" data-student-profile-head="leave" onclick="openStudentProfileDetail('leave', this)"><strong>Leave Application</strong><span>⌄</span></button>` : "",
-        canSeeConveyance ? `<button class="student-profile-section-head" data-student-profile-head="conveyance" style="flex:1 1 185px" onclick="openStudentProfileDetail('conveyance', this)"><strong>Conveyance Bill</strong><span>⌄</span></button>` : ""
+        isFundMember ? `<button type="button" aria-expanded="false" class="student-profile-section-head" data-student-profile-head="fund" onclick="openStudentProfileDetail('fund', this)"><strong>Fund</strong><span>⌄</span></button>` : "",
+        canSeeCaUpdate ? `<button type="button" aria-expanded="false" class="student-profile-section-head" data-student-profile-head="ca" onclick="openStudentProfileDetail('ca', this)"><strong>CA Results Update</strong><span>⌄</span></button>` : "",
+        canSeeArticleConversion ? `<button type="button" aria-expanded="false" class="student-profile-section-head" data-student-profile-head="article" onclick="openStudentProfileDetail('article', this)"><strong>Article Conversion</strong><span>⌄</span></button>` : "",
+        canSeeLeave ? `<button type="button" aria-expanded="false" class="student-profile-section-head" data-student-profile-head="leave" onclick="openStudentProfileDetail('leave', this)"><strong>Leave Application</strong><span>⌄</span></button>` : "",
+        canSeeConveyance ? `<button type="button" aria-expanded="false" class="student-profile-section-head" data-student-profile-head="conveyance" onclick="openStudentProfileDetail('conveyance', this)"><strong>Conveyance Bill</strong><span>⌄</span></button>` : ""
       ].filter(Boolean);
       const profileSectionHeads = profileSectionHeadItems.join("");
       const profileSectionHeadClass = profileSectionHeadItems.length === 1 ? "one-head" : (profileSectionHeadItems.length === 2 ? "two-heads" : "");
@@ -993,7 +993,7 @@
           </div>
 
           <div class="student-profile-right">
-            ${profileSectionHeads ? `<div class="student-profile-section-heads ${profileSectionHeadClass}" style="display:flex;flex-wrap:wrap;gap:12px">${profileSectionHeads}</div>` : ""}
+            ${profileSectionHeads ? `<div class="student-profile-section-heads ${profileSectionHeadClass}" aria-label="My profile sections">${profileSectionHeads}</div>` : ""}
 
             ${isFundMember ? `<div id="studentProfileFundPanel" class="student-profile-detail-panel hidden">${fundDashboardHtml}</div>` : ""}
             ${canSeeCaUpdate ? `<div id="studentProfileCaPanel" class="student-profile-detail-panel hidden">${studentCaEditBox}</div>` : ""}
@@ -1023,11 +1023,11 @@
       const wasOpen = !panel.classList.contains("hidden");
 
       document.querySelectorAll(".student-profile-detail-panel").forEach(item => item.classList.add("hidden"));
-      document.querySelectorAll(".student-profile-section-head").forEach(head => head.classList.remove("active"));
+      document.querySelectorAll(".student-profile-section-head").forEach(head => { head.classList.remove("active"); head.setAttribute("aria-expanded", "false"); });
 
       if (!wasOpen) {
         panel.classList.remove("hidden");
-        if (button) button.classList.add("active");
+        if (button) { button.classList.add("active"); button.setAttribute("aria-expanded", "true"); }
       }
     }
 
@@ -3883,7 +3883,7 @@ async function buildStudentConveyanceBox(studentId) {
       </td></tr>`;
   }).join("") : '<tr><td colspan="7">No conveyance bill found for this student.</td></tr>';
 
-  return `<div class="card">
+  return `<div class="card maf-conveyance-card">
     <h2>Conveyance Bill</h2>
     <p class="subtitle">Prepare a monthly bill, add travel items, save a draft and submit for Manager review. Submitted bills cannot be edited until returned.</p>
     <div id="conveyanceEditor">
@@ -3900,12 +3900,17 @@ async function buildStudentConveyanceBox(studentId) {
         <button type="button" onclick="conveyanceAddLine()">Add Travel Row</button>
         <button type="button" onclick="conveyanceResetEditor()">New Bill</button>
       </div>
-      <p><strong>Total Amount: <span id="conveyanceEditorTotal">0.00</span></strong></p>
-      <div class="btn-row">
-        <button type="button" onclick="conveyanceSaveDraft(false)">Save Draft</button>
-        <button type="button" class="success" onclick="conveyanceSaveDraft(true)">Save and Submit to Manager</button>
+      <div class="maf-conveyance-action-box">
+        <div class="maf-conveyance-total" aria-live="polite">
+          <span>Total Claim Amount</span>
+          <strong>৳ <span id="conveyanceEditorTotal">0.00</span></strong>
+        </div>
+        <div class="btn-row maf-conveyance-save-actions">
+          <button type="button" onclick="conveyanceSaveDraft(false)">Save Draft</button>
+          <button type="button" class="success" onclick="conveyanceSaveDraft(true)">Save and Submit to Manager</button>
+        </div>
+        <div class="maf-conveyance-help" role="note">Drafts can be edited before submission. Once submitted, your bill moves to the Manager for review. You can check its status in the history below.</div>
       </div>
-      <p class="subtitle">If Supabase rejects a save, the server may require the original Conveyance RPC or additional role permissions. An error will be shown instead of bypassing security.</p>
     </div>
     <h3 style="margin-top:22px">My Conveyance Bills</h3>
     <div style="overflow-x:auto"><table>
@@ -5033,3 +5038,219 @@ function conveyanceEnsureEditor() {
 
 })();
 
+
+
+/* ===== MAF UI layout refinement: isolated CSS overrides ===== */
+(function applyMafProfileConveyanceLayout() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById("maf-profile-conveyance-layout-fix")) return;
+  const style = document.createElement("style");
+  style.id = "maf-profile-conveyance-layout-fix";
+  style.textContent = `
+/* MAF profile dashboard + Conveyance layout refinement (2026-10-29).
+   Presentation-only: does not alter Supabase permissions, records or workflows. */
+.student-profile-dashboard-layout,
+.student-profile-left,
+.student-profile-right,
+.student-profile-detail-panel { min-width: 0 !important; }
+.student-profile-right .student-profile-section-heads,
+.student-profile-right .student-profile-section-heads.one-head,
+.student-profile-right .student-profile-section-heads.two-heads {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+  align-items: stretch !important;
+  margin: 0 0 24px !important;
+  width: 100% !important;
+}
+.student-profile-right .student-profile-section-head {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  flex: initial !important;
+  min-height: 84px !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  padding: 16px 17px !important;
+  margin: 0 !important;
+  border-radius: 16px !important;
+  line-height: 1.35 !important;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease !important;
+}
+.student-profile-right .student-profile-section-head strong {
+  min-width: 0 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  font-size: clamp(14px, 1.2vw, 17px) !important;
+  letter-spacing: .01em !important;
+}
+.student-profile-right .student-profile-section-head > span {
+  margin-left: auto !important;
+  flex-shrink: 0 !important;
+}
+.student-profile-right .student-profile-section-head:focus-visible,
+.maf-conveyance-card button:focus-visible {
+  outline: 3px solid rgba(185,28,28,.45) !important;
+  outline-offset: 3px !important;
+}
+.student-profile-right .student-profile-detail-panel {
+  display: block;
+  width: 100%;
+  margin: 0 !important;
+  padding: 0;
+  clear: both;
+  box-sizing: border-box;
+}
+.student-profile-right .student-profile-detail-panel.hidden { display: none !important; }
+#studentProfileConveyancePanel .maf-conveyance-card {
+  overflow: visible !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  padding: clamp(16px, 2vw, 25px) !important;
+  margin-top: 0 !important;
+  border-radius: 18px !important;
+}
+#studentProfileConveyancePanel .maf-conveyance-card h2 { margin-bottom: 15px !important; }
+#studentProfileConveyancePanel .maf-conveyance-card .subtitle {
+  margin: 0 0 18px !important;
+  line-height: 1.65 !important;
+}
+#studentProfileConveyancePanel .maf-conveyance-card .form-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+  gap: 14px !important;
+  margin-bottom: 20px !important;
+}
+#studentProfileConveyancePanel .maf-conveyance-card .form-grid > div,
+#studentProfileConveyancePanel .maf-conveyance-card input {
+  min-width: 0;
+  box-sizing: border-box;
+}
+#studentProfileConveyancePanel .maf-conveyance-card #conveyanceEditor > div[style*="overflow-x:auto"],
+#studentProfileConveyancePanel .maf-conveyance-card > div[style*="overflow-x:auto"] {
+  max-width: 100%;
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  border: 1px solid #e7e4e4;
+  border-radius: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+#studentProfileConveyancePanel .maf-conveyance-card #conveyanceEditLines td,
+#studentProfileConveyancePanel .maf-conveyance-card #conveyanceEditLines input,
+#studentProfileConveyancePanel .maf-conveyance-card #conveyanceEditLines select {
+  box-sizing: border-box !important;
+}
+#studentProfileConveyancePanel .maf-conveyance-card #conveyanceEditor > .btn-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  margin: 16px 0 0 !important;
+  align-items: center !important;
+}
+#studentProfileConveyancePanel .maf-conveyance-action-box {
+  display: block !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  margin: 22px 0 8px !important;
+  padding: 18px !important;
+  clear: both !important;
+  border-radius: 16px !important;
+  border: 1px solid #e7d7d8 !important;
+  background: #fcf9f9 !important;
+}
+#studentProfileConveyancePanel .maf-conveyance-total {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  margin: 0 0 16px !important;
+  padding: 0 0 15px !important;
+  border-bottom: 1px solid #ebdddf !important;
+  color: #4b272a !important;
+}
+#studentProfileConveyancePanel .maf-conveyance-total span { font-size: 14px; font-weight: 600; }
+#studentProfileConveyancePanel .maf-conveyance-total strong { font-size: 23px; color: #941c22; }
+#studentProfileConveyancePanel .maf-conveyance-total strong span { font-size: inherit; font-weight: inherit; }
+#studentProfileConveyancePanel .maf-conveyance-save-actions {
+  position: relative !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}
+#studentProfileConveyancePanel .maf-conveyance-save-actions > button {
+  position: static !important;
+  float: none !important;
+  width: auto !important;
+  max-width: 100% !important;
+  min-height: 44px !important;
+  height: auto !important;
+  padding: 11px 18px !important;
+  margin: 0 !important;
+  white-space: normal !important;
+  font-size: 14px !important;
+  line-height: 1.3 !important;
+  box-shadow: 0 4px 9px rgba(30,20,20,.09) !important;
+  box-sizing: border-box !important;
+}
+#studentProfileConveyancePanel .maf-conveyance-help {
+  display: block !important;
+  position: relative !important;
+  clear: both !important;
+  width: 100% !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+  padding: 12px 14px !important;
+  margin: 17px 0 0 !important;
+  border-left: 3px solid #bd6d73 !important;
+  border-radius: 0 9px 9px 0 !important;
+  background: #f4eeee !important;
+  color: #615157 !important;
+  font-size: 13px !important;
+  line-height: 1.65 !important;
+  z-index: auto !important;
+  transform: none !important;
+}
+#studentProfileConveyancePanel .maf-conveyance-card > h3 {
+  margin: 28px 0 15px !important;
+  clear: both !important;
+}
+@media (max-width: 1050px) {
+  .student-profile-right .student-profile-section-head { min-height: 76px !important; }
+  .student-profile-right .student-profile-section-head strong { font-size: 15px !important; }
+}
+@media (max-width: 760px) {
+  .student-profile-right .student-profile-section-heads,
+  .student-profile-right .student-profile-section-heads.one-head,
+  .student-profile-right .student-profile-section-heads.two-heads {
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+    gap: 12px !important;
+  }
+  .student-profile-right .student-profile-section-head { min-height: 70px !important; padding: 13px !important; }
+}
+@media (max-width: 540px) {
+  .student-profile-right .student-profile-section-heads,
+  .student-profile-right .student-profile-section-heads.one-head,
+  .student-profile-right .student-profile-section-heads.two-heads { grid-template-columns: 1fr !important; gap: 10px !important; }
+  .student-profile-right .student-profile-section-head { min-height: 59px !important; padding: 12px 14px !important; }
+  #studentProfileConveyancePanel .maf-conveyance-card .form-grid { grid-template-columns: minmax(0,1fr) !important; }
+  #studentProfileConveyancePanel .maf-conveyance-action-box { padding: 14px !important; }
+  #studentProfileConveyancePanel .maf-conveyance-save-actions { display: grid !important; grid-template-columns: minmax(0,1fr) !important; }
+  #studentProfileConveyancePanel .maf-conveyance-save-actions > button { width: 100% !important; }
+}
+`;
+  (document.head || document.documentElement).appendChild(style);
+})();
